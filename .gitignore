@@ -15,8 +15,7 @@ node_modules/
 *.temp
 
 # Clés API (IMPORTANT : ne jamais commiter les clés API)
-# Note: Actuellement les clés sont hardcodées dans sidepanel.js
-# Il faudra les remplacer par des variables d'environnement
+config.js
 
 # Archives
 *.zip
