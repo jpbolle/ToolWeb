@@ -1,0 +1,23 @@
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Fichiers de développement
+.vscode/
+.idea/
+*.log
+
+# Node modules (si vous ajoutez des dépendances plus tard)
+node_modules/
+
+# Fichiers temporaires
+*.tmp
+*.temp
+
+# Clés API (IMPORTANT : ne jamais commiter les clés API)
+# Note: Actuellement les clés sont hardcodées dans sidepanel.js
+# Il faudra les remplacer par des variables d'environnement
+
+# Archives
+*.zip
+*.tar.gz

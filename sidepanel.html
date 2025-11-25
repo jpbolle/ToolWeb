@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScriptOmail</title>
+    <style>
+        body {
+            width: 100%;
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            box-sizing: border-box;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .icon-button {
+            background-color: #4caf50;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s, opacity 0.3s;
+        }
+
+        #stopRecording {
+            background-color: #ef5350;
+        }
+
+        #cleanText {
+            background-color: #ab47bc;
+        }
+
+        #copyText {
+            background-color: #42a5f5;
+        }
+
+        #restartRecording {
+            background-color: #f57c00;
+        }
+
+        #writeEmail {
+            background-color: #8B4513;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            padding: 10px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        img {
+            max-width: 60%;
+            max-height: 60%;
+        }
+
+        /* Section Styles */
+        .section {
+            width: 100%;
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #4caf50;
+        }
+
+        .section-description {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+
+        /* Clipboard History Styles */
+        #clipboard-history {
+            width: 100%;
+        }
+
+        #clipboard-history h3 {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #2196F3;
+        }
+
+        .clipboard-instructions {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 12px;
+            padding: 10px;
+            background-color: #e3f2fd;
+            border-radius: 5px;
+            line-height: 1.5;
+        }
+
+        kbd {
+            background-color: #f4f4f4;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 2px 5px;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        .clipboard-instructions strong {
+            color: #1976D2;
+        }
+
+        /* Quick phrases */
+        .quick-phrases {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .quick-phrase-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        .quick-phrase-btn:hover {
+            background-color: #1976D2;
+        }
+
+        /* Custom phrase input */
+        .custom-phrase-container {
+            margin-bottom: 12px;
+        }
+
+        #customPhraseInput {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #2196F3;
+            border-radius: 5px;
+            font-size: 13px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #customPhraseInput:focus {
+            border-color: #1976D2;
+        }
+
+        #customPhraseInput::placeholder {
+            color: #999;
+        }
+
+        .history-item {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .history-item:hover {
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+            border-color: #2196F3;
+        }
+
+        .history-text {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 10px;
+            color: #333;
+            font-weight: 500;
+            cursor: help;
+        }
+
+        .history-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .paste-btn {
+            background-color: #2196F3;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+
+        .paste-btn:hover {
+            background-color: #1976D2;
+        }
+
+        .delete-btn {
+            background-color: #f44336;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            padding: 6px 8px;
+            font-size: 12px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+
+        /* Tooltip pour afficher le texte complet */
+        .history-item .tooltip {
+            visibility: hidden;
+            background-color: #333;
+            color: white;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 1000;
+            top: 100%;
+            left: 10px;
+            width: 120px;
+            max-width: 120px;
+            margin-top: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 11px;
+            white-space: normal;
+            word-wrap: break-word;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            line-height: 1.4;
+        }
+
+        .history-item:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .tooltip::before {
+            content: "";
+            position: absolute;
+            bottom: 100%;
+            left: 20px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: transparent transparent #333 transparent;
+        }
+
+        /* Large Display Section */
+        #large-display h3 {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #FF9800;
+        }
+
+        #displayText {
+            width: 100%;
+            min-height: 80px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            padding: 10px;
+            box-sizing: border-box;
+            resize: vertical;
+            border: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        .display-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(255, 152, 0, 0.3);
+        }
+
+        .display-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(255, 152, 0, 0.4);
+        }
+
+        .display-btn:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Section 1: Dictée et Transcription -->
+        <div class="section">
+            <div class="section-title">🎤 Dictée et Transcription</div>
+            <div class="section-description">
+                Enregistrez votre voix, transcrivez-la automatiquement, nettoyez le texte ou générez un email
+                professionnel.
+            </div>
+            <textarea id="transcribedText" placeholder="Texte transcrit ici..." readonly></textarea>
+            <div class="button-container">
+                <button id="startRecording" class="icon-button" title="Enregistrer"><img
+                        src="images/microphoneBlanc.png" alt="Enregistrer"></button>
+                <button id="stopRecording" class="icon-button" disabled title="Arrêter"><img src="images/stopBlanc.png"
+                        alt="Stop"></button>
+                <button id="cleanText" class="icon-button" title="Nettoyer"><img src="images/pinceau.png"
+                        alt="Nettoyer"></button>
+                <button id="copyText" class="icon-button" title="Copier"><img src="images/copyBlanc.png"
+                        alt="Copier"></button>
+                <button id="restartRecording" class="icon-button" title="Recommencer"><img
+                        src="images/flècheRecommencer.png" alt="Recommencer"></button>
+                <button id="writeEmail" class="icon-button" title="Générer Email"><img src="images/mail.png"
+                        alt="Email"></button>
+            </div>
+        </div>
+
+        <!-- Section 2: Presse-papiers -->
+        <div class="section" id="clipboard-history">
+            <h3>📋 Presse-papiers</h3>
+            <div class="clipboard-instructions">
+                <strong>Comment ça marche :</strong><br>
+                1. Copiez du texte sur n'importe quelle page web (<kbd>Ctrl+C</kbd> ou <kbd>Cmd+C</kbd>)<br>
+                2. Le texte apparaîtra automatiquement ici<br>
+                3. Cliquez sur <strong>"Coller"</strong> pour insérer le texte dans le champ actif de votre page web
+            </div>
+            <div class="quick-phrases">
+                <button class="quick-phrase-btn" data-phrase="Cordialement">Cordialement</button>
+                <button class="quick-phrase-btn" data-phrase="Bien à toi">Bien à toi</button>
+            </div>
+            <div class="custom-phrase-container">
+                <input type="text" id="customPhraseInput" placeholder="Tapez votre texte et appuyez sur Enter..." />
+            </div>
+            <div id="history-list">
+                <!-- History items will be added here -->
+            </div>
+        </div>
+
+        <!-- Section 3: Affichage en grand -->
+        <div class="section" id="large-display">
+            <h3>📺 Affichage en grand</h3>
+            <div class="section-description">
+                Affichez du texte en très grand sur la page web active (idéal pour les formations, mots de passe, codes,
+                etc.)
+            </div>
+            <textarea id="displayText" placeholder="Entrez le texte à afficher en grand..." rows="3"></textarea>
+            <button id="showLargeDisplay" class="display-btn">Afficher en grand</button>
+        </div>
+
+    </div>
+    <script src="sidepanel.js"></script>
+</body>
+
+</html>
