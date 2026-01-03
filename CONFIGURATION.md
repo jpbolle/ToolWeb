@@ -1,4 +1,4 @@
-# Configuration de ScriptoMail
+# Configuration de ToolWeb
 
 ## 🔑 Configuration de la Clé API OpenAI
 

@@ -1,6 +1,191 @@
 document.addEventListener('DOMContentLoaded', function () {
   console.log('sidepanel.js chargé et DOMContentLoaded déclenché');
 
+  // Helper function pour envoyer des messages au content script
+  // Comme on est dans une iframe, on utilise postMessage au lieu de chrome.tabs.sendMessage
+  function sendMessageToContentScript(action, data = {}) {
+    window.parent.postMessage({
+      type: 'toolweb_message',
+      action: action,
+      ...data
+    }, '*');
+  }
+
+  // Gestion du bouton de réduction de la sidebar (dans l'iframe)
+  const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
+  const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+
+  // Fonction pour restaurer les 2 lignes parallèles verticales
+  function resetButtonToLines() {
+    if (collapseSidebarBtn) {
+      collapseSidebarBtn.innerHTML = '<span class="line"></span><span class="line"></span>';
+      collapseSidebarBtn.title = 'Réduire la sidebar';
+    }
+  }
+
+  if (collapseSidebarBtn) {
+    collapseSidebarBtn.addEventListener('click', function () {
+      console.log('📉 Demande de réduction de la sidebar');
+      sendMessageToContentScript('collapse_sidebar');
+    });
+  }
+
+  // Gestion du bouton de fermeture complète
+  if (closeSidebarBtn) {
+    closeSidebarBtn.addEventListener('click', function () {
+      console.log('🗑️ Demande de fermeture complète de la sidebar');
+
+      // Désactiver le toggle de la loupe
+      if (toggleMagnifier) {
+        toggleMagnifier.checked = false;
+        console.log('🔍 Toggle désactivé (fermeture sidebar)');
+      }
+
+      // Désactiver le toggle de la traduction
+      if (toggleTranslation && toggleTranslation.checked) {
+        toggleTranslation.checked = false;
+        chrome.storage.local.set({ translationEnabled: false });
+        sendMessageToContentScript('disable_translation');
+        console.log('🌐 Toggle traduction désactivé (fermeture sidebar)');
+      }
+
+      sendMessageToContentScript('remove_sidebar');
+    });
+  }
+
+  // Écouter quand la sidebar est réagrandie pour remettre les lignes
+  // On vérifie périodiquement si le bouton est visible (ce qui signifie que la sidebar est agrandie)
+  setInterval(() => {
+    if (collapseSidebarBtn && collapseSidebarBtn.offsetParent !== null) {
+      // Le bouton est visible, s'assurer qu'il a les 2 lignes verticales
+      if (!collapseSidebarBtn.querySelector('.line')) {
+        resetButtonToLines();
+      }
+    }
+  }, 1000);
+
+  // Gestion du toggle ON/OFF de la loupe
+  const toggleMagnifier = document.getElementById('toggleMagnifier');
+
+  if (toggleMagnifier) {
+    toggleMagnifier.addEventListener('change', function() {
+      if (this.checked) {
+        // Toggle activé → Activer la loupe
+        console.log('🔍 Toggle activé → Activation de la loupe');
+        activateMagnifierFromPanel();
+      } else {
+        // Toggle désactivé → Désactiver la loupe
+        console.log('🔍 Toggle désactivé → Désactivation de la loupe');
+        sendMessageToContentScript('deactivate_all_tools');
+      }
+    });
+  }
+
+  // Gestion du toggle ON/OFF de la traduction
+  const toggleTranslation = document.getElementById('toggleTranslation');
+  const sourceLanguage = document.getElementById('sourceLanguage');
+  const targetLanguage = document.getElementById('targetLanguage');
+
+  if (toggleTranslation) {
+    // Charger les paramètres sauvegardés
+    chrome.storage.local.get(['translationEnabled', 'sourceLang', 'targetLang'], function(result) {
+      toggleTranslation.checked = result.translationEnabled || false;
+      if (sourceLanguage) sourceLanguage.value = result.sourceLang || 'auto';
+      if (targetLanguage) targetLanguage.value = result.targetLang || 'fr';
+
+      // Si la traduction est activée au chargement, l'activer
+      if (result.translationEnabled) {
+        sendTranslationSettings();
+      }
+    });
+
+    // Gérer le changement du toggle
+    toggleTranslation.addEventListener('change', function() {
+      chrome.storage.local.set({ translationEnabled: this.checked });
+
+      if (this.checked) {
+        console.log('🌐 Toggle activé → Activation de la traduction');
+        sendTranslationSettings();
+      } else {
+        console.log('🌐 Toggle désactivé → Désactivation de la traduction');
+        sendMessageToContentScript('disable_translation');
+      }
+    });
+  }
+
+  // Gérer les changements de langue
+  if (sourceLanguage) {
+    sourceLanguage.addEventListener('change', function() {
+      chrome.storage.local.set({ sourceLang: this.value });
+      if (toggleTranslation.checked) {
+        sendTranslationSettings();
+      }
+    });
+  }
+
+  if (targetLanguage) {
+    targetLanguage.addEventListener('change', function() {
+      chrome.storage.local.set({ targetLang: this.value });
+      if (toggleTranslation.checked) {
+        sendTranslationSettings();
+      }
+    });
+  }
+
+  // Fonction pour envoyer les paramètres de traduction au content script
+  function sendTranslationSettings() {
+    const settings = {
+      enabled: toggleTranslation.checked,
+      sourceLang: sourceLanguage.value,
+      targetLang: targetLanguage.value
+    };
+    sendMessageToContentScript('enable_translation', settings);
+    console.log('📤 Paramètres de traduction envoyés:', settings);
+  }
+
+  // Système de navigation par onglets
+  const navIcons = document.querySelectorAll('.nav-icon');
+  const toolSections = document.querySelectorAll('.tool-section');
+
+  navIcons.forEach(icon => {
+    icon.addEventListener('click', function () {
+      const targetSection = this.getAttribute('data-section');
+
+      // Désactiver tous les outils actifs sur la page
+      sendMessageToContentScript('deactivate_all_tools');
+
+      // Si on quitte la section loupe, désactiver le toggle
+      if (targetSection !== 'magnifier' && toggleMagnifier) {
+        toggleMagnifier.checked = false;
+        console.log('🔍 Toggle désactivé (changement de section)');
+      }
+
+      // Si on quitte la section traduction, désactiver le toggle
+      if (targetSection !== 'translation' && toggleTranslation && toggleTranslation.checked) {
+        toggleTranslation.checked = false;
+        chrome.storage.local.set({ translationEnabled: false });
+        sendMessageToContentScript('disable_translation');
+        console.log('🌐 Toggle traduction désactivé (changement de section)');
+      }
+
+      // Retirer la classe active de tous les icônes et sections
+      navIcons.forEach(i => i.classList.remove('active'));
+      toolSections.forEach(s => s.classList.remove('active'));
+
+      // Activer l'icône cliqué et sa section correspondante
+      this.classList.add('active');
+      const sectionToShow = document.querySelector(`.tool-section[data-section="${targetSection}"]`);
+      if (sectionToShow) {
+        sectionToShow.classList.add('active');
+      }
+
+      console.log(`✅ Section activée: ${targetSection}`);
+
+      // Ne PAS activer automatiquement la loupe
+      // L'utilisateur doit activer le toggle manuellement
+    });
+  });
+
   const startBtn = document.getElementById('startRecording');
   const stopBtn = document.getElementById('stopRecording');
   const copyBtn = document.getElementById('copyText');
@@ -19,6 +204,51 @@ document.addEventListener('DOMContentLoaded', function () {
   // Initialiser l'historique depuis le stockage local
   loadClipboardHistory();
 
+  // Gestionnaire pour les icônes d'information
+  const infoIcons = document.querySelectorAll('.info-icon');
+  infoIcons.forEach(icon => {
+    icon.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const descId = this.getAttribute('data-desc-id');
+      const element = document.getElementById(descId);
+      if (element) {
+        element.classList.toggle('show');
+      }
+    });
+  });
+
+  // Gestionnaire pour le toggle du presse-papiers
+  const clipboardToggle = document.getElementById('clipboardToggle');
+  if (clipboardToggle) {
+    // Charger l'état sauvegardé (par défaut: true = activé)
+    chrome.storage.local.get(['clipboardCaptureEnabled'], function (result) {
+      // Si jamais défini, on active par défaut
+      const isEnabled = result.clipboardCaptureEnabled === undefined ? true : result.clipboardCaptureEnabled;
+      clipboardToggle.checked = isEnabled;
+      console.log('📋 État initial du toggle:', isEnabled ? 'ACTIVÉ' : 'DÉSACTIVÉE');
+    });
+
+    // Écouter les changements
+    clipboardToggle.addEventListener('change', function () {
+      const isEnabled = this.checked;
+      chrome.storage.local.set({ clipboardCaptureEnabled: isEnabled }, () => {
+        console.log('📋 Capture du presse-papiers:', isEnabled ? 'ACTIVÉE' : 'DÉSACTIVÉE');
+      });
+    });
+  }
+
+  // Gestionnaire pour le bouton "Effacer tout"
+  const clearAllHistoryBtn = document.getElementById('clearAllHistory');
+  if (clearAllHistoryBtn) {
+    clearAllHistoryBtn.addEventListener('click', function () {
+      chrome.storage.local.set({ clipboardHistory: [] }, () => {
+        console.log('🗑️ Historique du presse-papiers effacé');
+        updateHistoryUI([]);
+      });
+    });
+  }
+
   // Écouter les mises à jour de l'historique
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.clipboardHistory) {
@@ -26,97 +256,87 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // Fonction pour activer la loupe depuis le panneau
+  function activateMagnifierFromPanel() {
+    // Réinitialiser le curseur de zoom à 1.0
+    if (magnifierZoomSlider) {
+      magnifierZoomSlider.value = '1';
+      magnifierZoomValue.textContent = '1.0x';
+      console.log('✅ Curseur zoom réinitialisé à 1.0');
+    }
+
+    // Envoyer le message au content script pour activer la loupe
+    sendMessageToContentScript('activate_magnifier');
+    console.log("✅ Demande d'activation de la loupe envoyée");
+  }
+
+  // Gestionnaires pour les curseurs de la loupe
+  const magnifierSizeSlider = document.getElementById('magnifierSize');
+  const magnifierSizeValue = document.getElementById('magnifierSizeValue');
+  const magnifierDarknessSlider = document.getElementById('magnifierDarkness');
+  const magnifierDarknessValue = document.getElementById('magnifierDarknessValue');
+  const magnifierZoomSlider = document.getElementById('magnifierZoom');
+  const magnifierZoomValue = document.getElementById('magnifierZoomValue');
+
+  // Initialiser les valeurs affichées au chargement
+  if (magnifierSizeSlider && magnifierSizeValue) {
+    magnifierSizeValue.textContent = magnifierSizeSlider.value + 'px';
+  }
+  if (magnifierDarknessSlider && magnifierDarknessValue) {
+    magnifierDarknessValue.textContent = magnifierDarknessSlider.value + '%';
+  }
+  if (magnifierZoomSlider && magnifierZoomValue) {
+    magnifierZoomSlider.value = '1';  // Force la valeur à 1 au démarrage
+    magnifierZoomValue.textContent = '1.0x';
+  }
+
+  if (magnifierSizeSlider) {
+    magnifierSizeSlider.addEventListener('input', function () {
+      const size = this.value;
+      magnifierSizeValue.textContent = size + 'px';
+      updateMagnifierParams();
+    });
+  }
+
+  if (magnifierDarknessSlider) {
+    magnifierDarknessSlider.addEventListener('input', function () {
+      const darkness = this.value;
+      magnifierDarknessValue.textContent = darkness + '%';
+      updateMagnifierParams();
+    });
+  }
+
+  if (magnifierZoomSlider) {
+    magnifierZoomSlider.addEventListener('input', function () {
+      const zoom = parseFloat(this.value).toFixed(1);
+      magnifierZoomValue.textContent = zoom + 'x';
+      updateMagnifierParams();
+    });
+  }
+
+  function updateMagnifierParams() {
+    const params = {
+      size: parseInt(magnifierSizeSlider.value),
+      darkness: parseInt(magnifierDarknessSlider.value),
+      zoom: parseFloat(magnifierZoomSlider.value)
+    };
+
+    sendMessageToContentScript('update_magnifier', { params: params });
+  }
+
   // Gestionnaire pour l'affichage en grand
   if (showLargeDisplayBtn && displayText) {
     // Fonction pour afficher le texte
-    const displayLargeText = async function () {
+    const displayLargeText = function () {
       const text = displayText.value.trim();
       if (!text) {
         alert('Veuillez entrer du texte à afficher.');
         return;
       }
 
-      try {
-        const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-        if (!tab) {
-          alert("Aucun onglet actif. Ouvrez une page web et réessayez.");
-          return;
-        }
-
-        // Envoyer le message au content script pour afficher l'overlay
-        chrome.tabs.sendMessage(tab.id, { action: "show_large_display", text: text }, function (response) {
-          if (chrome.runtime.lastError) {
-            console.warn("Content script non disponible, injection directe...");
-            // Fallback: injecter directement la fonction
-            chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              func: (textToDisplay) => {
-                // Fonction inline pour afficher l'overlay
-                const existingOverlay = document.getElementById('scriptomail-large-overlay');
-                if (existingOverlay) existingOverlay.remove();
-
-                const overlay = document.createElement('div');
-                overlay.id = 'scriptomail-large-overlay';
-                overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 2147483647; display: flex; align-items: center; justify-content: center;`;
-
-                const textContainer = document.createElement('div');
-                textContainer.style.cssText = `background: white; padding: 60px 80px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); max-width: 90%; max-height: 80%; overflow: auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 30px;`;
-
-                const textElement = document.createElement('div');
-                textElement.style.cssText = `font-size: 72px; font-weight: bold; color: #333; line-height: 1.3; word-wrap: break-word; font-family: Arial, sans-serif;`;
-                textElement.textContent = textToDisplay;
-
-                // Générer le QR code
-                const qrContainer = document.createElement('div');
-                qrContainer.style.cssText = `display: flex; flex-direction: column; align-items: center; gap: 10px;`;
-
-                const qrTitle = document.createElement('div');
-                qrTitle.style.cssText = `font-size: 16px; color: #666; font-weight: 600;`;
-                qrTitle.textContent = '📱 Scannez pour copier le texte';
-
-                const qrImage = document.createElement('img');
-                // Utiliser l'API QR Code gratuite
-                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(textToDisplay)}`;
-                qrImage.src = qrCodeUrl;
-                qrImage.style.cssText = `width: 200px; height: 200px; border: 3px solid #333; border-radius: 10px;`;
-                qrImage.alt = 'QR Code';
-
-                qrContainer.appendChild(qrTitle);
-                qrContainer.appendChild(qrImage);
-
-                const closeButton = document.createElement('button');
-                closeButton.textContent = '✕ Fermer';
-                closeButton.style.cssText = `position: absolute; top: 30px; right: 30px; background: #f44336; color: white; border: none; border-radius: 8px; padding: 15px 30px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);`;
-                closeButton.onclick = () => overlay.remove();
-
-                textContainer.appendChild(textElement);
-                textContainer.appendChild(qrContainer);
-                overlay.appendChild(textContainer);
-                overlay.appendChild(closeButton);
-                document.body.appendChild(overlay);
-
-                document.addEventListener('keydown', (e) => {
-                  if (e.key === 'Escape') overlay.remove();
-                });
-                overlay.addEventListener('click', (e) => {
-                  if (e.target === overlay) overlay.remove();
-                });
-              },
-              args: [text]
-            }).then(() => {
-              console.log("✅ Overlay affiché via injection directe");
-            }).catch((err) => {
-              console.error("Erreur lors de l'injection:", err);
-              alert("Impossible d'afficher le texte sur cette page.");
-            });
-          } else {
-            console.log("✅ Overlay affiché avec succès");
-          }
-        });
-      } catch (error) {
-        console.error("Erreur lors de l'affichage:", error);
-        alert("Erreur lors de l'affichage du texte.");
-      }
+      // Envoyer le message au content script pour afficher l'overlay
+      sendMessageToContentScript('show_large_display', { text: text });
+      console.log("✅ Demande d'affichage en grand envoyée");
     };
 
     // Clic sur le bouton
@@ -256,13 +476,44 @@ document.addEventListener('DOMContentLoaded', function () {
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         console.log('Accès au microphone accordé.');
-        mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.start();
-        console.log('Enregistrement démarré.');
+
+        // Tester les formats supportés et choisir le meilleur pour Whisper
+        const mimeTypes = [
+          'audio/webm;codecs=opus',
+          'audio/webm',
+          'audio/ogg;codecs=opus',
+          'audio/mp4',
+          'audio/wav'
+        ];
+
+        let selectedMimeType = '';
+        for (let mimeType of mimeTypes) {
+          if (MediaRecorder.isTypeSupported(mimeType)) {
+            selectedMimeType = mimeType;
+            console.log('Format audio sélectionné:', mimeType);
+            break;
+          }
+        }
+
+        if (!selectedMimeType) {
+          console.warn('Aucun format préféré supporté, utilisation du format par défaut');
+          mediaRecorder = new MediaRecorder(stream);
+        } else {
+          mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMimeType });
+        }
+
+        // Stocker le mimeType pour l'utiliser lors de la création du Blob
+        mediaRecorder.recordedMimeType = selectedMimeType || 'audio/webm';
+
+        // Démarrer l'enregistrement avec timeslice pour forcer la capture régulière
+        mediaRecorder.start(100); // Capture toutes les 100ms
+        console.log('Enregistrement démarré avec format:', mediaRecorder.recordedMimeType);
 
         mediaRecorder.ondataavailable = event => {
-          audioChunks.push(event.data);
-          console.log('Données audio disponibles.');
+          if (event.data && event.data.size > 0) {
+            audioChunks.push(event.data);
+            console.log('Données audio disponibles, taille:', event.data.size, 'octets');
+          }
         };
 
         setTimeout(() => {
@@ -289,12 +540,13 @@ document.addEventListener('DOMContentLoaded', function () {
     if (mediaRecorder) {
       mediaRecorder.stop();
       console.log('Enregistrement arrêté.');
+      const recordedMimeType = mediaRecorder.recordedMimeType || 'audio/webm';
       mediaRecorder.onstop = () => {
         console.log('Enregistrement terminé, création du Blob audio...');
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunks, { type: recordedMimeType });
         audioChunks = [];
         console.log('Données audio prêtes à être envoyées.');
-        sendAudioToWhisperAPI(audioBlob);
+        sendAudioToWhisperAPI(audioBlob, recordedMimeType);
         if (mediaRecorder.stream) {
           mediaRecorder.stream.getTracks().forEach(track => track.stop());
         }
@@ -305,12 +557,171 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  function sendAudioToWhisperAPI(audioBlob) {
+  async function convertToWav(audioBlob) {
+    console.log('Conversion de l\'audio en WAV...');
+
+    try {
+      // Créer un contexte audio
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Lire le blob comme ArrayBuffer
+      const arrayBuffer = await audioBlob.arrayBuffer();
+
+      // Décoder l'audio
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      console.log('Audio décodé:', audioBuffer.duration, 'secondes,', audioBuffer.numberOfChannels, 'canaux');
+
+      // Analyser le niveau audio
+      const channelData = audioBuffer.getChannelData(0);
+      let maxAmplitude = 0;
+      let totalAmplitude = 0;
+      for (let i = 0; i < channelData.length; i++) {
+        const abs = Math.abs(channelData[i]);
+        if (abs > maxAmplitude) maxAmplitude = abs;
+        totalAmplitude += abs;
+      }
+      const avgAmplitude = totalAmplitude / channelData.length;
+
+      console.log('📊 Analyse audio:');
+      console.log('  - Amplitude maximale:', maxAmplitude.toFixed(4));
+      console.log('  - Amplitude moyenne:', avgAmplitude.toFixed(4));
+      console.log('  - Niveau audio:', maxAmplitude > 0.01 ? '✅ Détecté' : '❌ Trop faible ou silencieux');
+
+      if (maxAmplitude < 0.01) {
+        console.warn('⚠️ ATTENTION: L\'audio semble silencieux! Vérifiez votre microphone.');
+        alert('⚠️ L\'audio enregistré semble silencieux.\nVérifiez que votre microphone fonctionne et que vous parlez assez fort.');
+      }
+
+      // Convertir en WAV
+      const wavBlob = audioBufferToWav(audioBuffer);
+      console.log('Conversion WAV terminée, taille:', wavBlob.size, 'octets');
+
+      // Permettre de télécharger l'audio pour le tester
+      window.lastRecordedWav = wavBlob;
+      console.log('💾 Audio WAV disponible. Pour le télécharger et l\'écouter, tapez dans la console: downloadLastRecording()');
+
+      return wavBlob;
+    } catch (error) {
+      console.error('Erreur lors de la conversion en WAV:', error);
+      throw error;
+    }
+  }
+
+  // Fonction globale pour télécharger le dernier enregistrement
+  window.downloadLastRecording = function() {
+    if (!window.lastRecordedWav) {
+      console.error('Aucun enregistrement disponible');
+      return;
+    }
+    const url = URL.createObjectURL(window.lastRecordedWav);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'enregistrement_' + Date.now() + '.wav';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log('✅ Fichier téléchargé');
+  };
+
+  function audioBufferToWav(audioBuffer) {
+    const numberOfChannels = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numberOfChannels * bytesPerSample;
+
+    const data = [];
+    for (let i = 0; i < numberOfChannels; i++) {
+      data.push(audioBuffer.getChannelData(i));
+    }
+
+    const interleaved = interleave(data);
+    const dataLength = interleaved.length * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataLength);
+    const view = new DataView(buffer);
+
+    // Écrire l'en-tête WAV
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numberOfChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataLength, true);
+
+    // Écrire les données audio
+    floatTo16BitPCM(view, 44, interleaved);
+
+    return new Blob([view], { type: 'audio/wav' });
+  }
+
+  function interleave(channelData) {
+    const length = channelData[0].length;
+    const numberOfChannels = channelData.length;
+    const result = new Float32Array(length * numberOfChannels);
+
+    let offset = 0;
+    for (let i = 0; i < length; i++) {
+      for (let channel = 0; channel < numberOfChannels; channel++) {
+        result[offset++] = channelData[channel][i];
+      }
+    }
+    return result;
+  }
+
+  function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+
+  function floatTo16BitPCM(view, offset, input) {
+    for (let i = 0; i < input.length; i++, offset += 2) {
+      const s = Math.max(-1, Math.min(1, input[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+  }
+
+  async function sendAudioToWhisperAPI(audioBlob, mimeType) {
     console.log('Envoi de l\'audio au service Whisper pour transcription...');
+    console.log('Taille du blob audio original:', audioBlob.size, 'octets');
+    console.log('Type du blob original:', audioBlob.type);
+    console.log('MimeType:', mimeType);
+    console.log('Clé API présente:', CONFIG && CONFIG.OPENAI_API_KEY ? 'Oui (longueur: ' + CONFIG.OPENAI_API_KEY.length + ')' : 'Non');
+
+    if (!CONFIG || !CONFIG.OPENAI_API_KEY) {
+      alert('Erreur : Clé API OpenAI non trouvée. Vérifiez que config.js est bien chargé.');
+      return;
+    }
+
+    if (audioBlob.size === 0) {
+      alert('Erreur : Aucun audio enregistré. Le fichier audio est vide.');
+      return;
+    }
+
+    // Convertir en WAV pour une meilleure compatibilité
+    let finalBlob;
+    try {
+      finalBlob = await convertToWav(audioBlob);
+    } catch (error) {
+      console.error('Impossible de convertir en WAV, envoi du format original');
+      finalBlob = audioBlob;
+    }
+
     const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.webm');
+    formData.append('file', finalBlob, 'audio.wav');
     formData.append('model', 'whisper-1');
     formData.append('language', 'fr');
+    formData.append('response_format', 'json');
 
     // API Key loaded from config.js
     fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -320,8 +731,14 @@ document.addEventListener('DOMContentLoaded', function () {
       },
       body: formData
     })
-      .then(response => response.json())
+      .then(response => {
+        console.log('Statut de la réponse:', response.status);
+        return response.json();
+      })
       .then(data => {
+        console.log('Réponse complète de Whisper:', data);
+        console.log('Texte transcrit:', data.text);
+
         if (data.text) {
           let currentText = transcribedText.value;
           let newText = currentText.slice(0, cursorPosition) + data.text + currentText.slice(cursorPosition);
@@ -333,6 +750,8 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (data.error) {
           console.error('Erreur lors de la transcription:', data);
           alert('Erreur lors de la transcription : ' + (data.error.message || JSON.stringify(data)));
+        } else {
+          console.warn('Réponse inattendue de l\'API:', data);
         }
       })
       .catch(error => {
@@ -498,49 +917,44 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
 
-      // Envoyer un message au content script pour coller le texte
+      // Fonction pour injecter le content script si nécessaire
+      const ensureContentScript = async () => {
+        try {
+          // Essayer d'envoyer un message de test
+          await chrome.tabs.sendMessage(tab.id, { action: "ping" });
+          return true;
+        } catch (error) {
+          // Content script non chargé, l'injecter
+          console.log("Injection du content script...");
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['content.js']
+            });
+            // Attendre un peu que le script s'initialise
+            await new Promise(resolve => setTimeout(resolve, 100));
+            return true;
+          } catch (injectionError) {
+            console.error("Impossible d'injecter le content script:", injectionError);
+            return false;
+          }
+        }
+      };
+
+      // S'assurer que le content script est chargé
+      const scriptReady = await ensureContentScript();
+
+      if (!scriptReady) {
+        console.warn("Content script non disponible, fallback clipboard");
+        copyToClipboardFallback(text);
+        return;
+      }
+
+      // Envoyer le message au content script qui gère la logique Google Docs/Sheets vs autres sites
       chrome.tabs.sendMessage(tab.id, { action: "paste_text", text: text }, function (response) {
         if (chrome.runtime.lastError) {
-          console.warn("Content script non disponible:", chrome.runtime.lastError.message);
-          console.log("Tentative d'injection du script...");
-
-          // Fallback: essayer d'injecter le script directement
-          chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: (textToPaste) => {
-              const activeElement = document.activeElement;
-              if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable)) {
-                // Insérer le texte
-                if (activeElement.value !== undefined) {
-                  const start = activeElement.selectionStart || 0;
-                  const end = activeElement.selectionEnd || 0;
-                  const value = activeElement.value;
-                  activeElement.value = value.substring(0, start) + textToPaste + value.substring(end);
-                  activeElement.selectionStart = activeElement.selectionEnd = start + textToPaste.length;
-                  activeElement.dispatchEvent(new Event('input', { bubbles: true }));
-                } else {
-                  // ContentEditable
-                  document.execCommand('insertText', false, textToPaste);
-                }
-                return { success: true };
-              } else {
-                return { success: false, reason: 'no_active_element' };
-              }
-            },
-            args: [text]
-          }).then((results) => {
-            if (results && results[0] && results[0].result) {
-              if (results[0].result.success) {
-                console.log("✅ Texte collé via injection directe");
-              } else {
-                console.warn("Aucun champ actif, utilisation du clipboard");
-                copyToClipboardFallback(text);
-              }
-            }
-          }).catch((err) => {
-            console.error("Erreur lors de l'injection:", err);
-            copyToClipboardFallback(text);
-          });
+          console.error("Erreur lors de l'envoi du message:", chrome.runtime.lastError.message);
+          copyToClipboardFallback(text);
         } else {
           console.log("✅ Message de collage envoyé avec succès au content script");
         }

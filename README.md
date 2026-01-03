@@ -1,6 +1,6 @@
-# ![ScriptOmail Icon](icon.png) ScriptOmail
+# ![ToolWeb Icon](icon.png) ToolWeb
 
-ScriptOmail est une extension Chrome puissante conçue pour améliorer votre productivité en facilitant la dictée, la transcription, le nettoyage de texte et la rédaction d'emails assistée par l'IA.
+ToolWeb est une extension Chrome puissante conçue pour améliorer votre productivité en facilitant la dictée, la transcription, le nettoyage de texte et la rédaction d'emails assistée par l'IA.
 
 ## Fonctionnalités
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "ScriptOmail",
-  "version": "2.1",
+  "name": "ToolWeb",
+  "version": "2.3",
   "description": "Extension pour dicter du texte, le transcrire avec Whisper et le nettoyer avec l'IA.",
   "permissions": [
     "activeTab",
@@ -9,14 +9,13 @@
     "clipboardWrite",
     "clipboardRead",
     "tabs",
-    "scripting",
-    "sidePanel"
+    "scripting"
   ],
   "host_permissions": [
     "*://*/*"
   ],
   "action": {
-    "default_title": "Ouvrir ScriptOmail",
+    "default_title": "Ouvrir ToolWeb",
     "default_icon": {
       "16": "icon16.png",
       "48": "icon48.png",
@@ -28,9 +27,6 @@
     "48": "icon48.png",
     "128": "icon128.png"
   },
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
   "background": {
     "service_worker": "background.js"
   },
@@ -41,7 +37,16 @@
       ],
       "js": [
         "content.js"
+      ],
+      "css": [
+        "sidebar.css"
       ]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["sidepanel.html", "sidepanel.js", "config.js", "images/*"],
+      "matches": ["<all_urls>"]
     }
   ],
   "content_security_policy": {

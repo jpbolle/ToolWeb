@@ -4,21 +4,170 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ScriptOmail</title>
+    <title>ToolWeb</title>
     <style>
+        html {
+            background-color: #f0f2f5;
+            height: 100%;
+        }
+
         body {
             width: 100%;
-            padding: 10px;
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
+            padding: 12px;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            /* Couleur unie plus sûre */
+            /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); Désactivé pour test */
             box-sizing: border-box;
+            min-height: 100vh;
+            overflow-x: hidden;
+            /* Éviter le scroll horizontal */
+            position: relative;
+            transition: padding 0.3s ease;
+        }
+
+        /* Bouton pour réduire la sidebar injectée - caché car géré par content.js */
+        .collapse-sidebar-btn {
+            display: none !important;
+        }
+
+        /* Bouton pour fermer complètement la sidebar */
+        .close-sidebar-btn {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #f44336;
+            color: white;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-sidebar-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(244, 67, 54, 0.6);
+            background: #d32f2f;
+        }
+
+        /* Toggle switch pour la loupe */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Conteneur principal unique avec fond blanc */
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        /* Navigation par icônes */
+        .icon-nav {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .nav-icon {
+            background: #f5f5f5;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            width: 60px;
+            height: 60px;
+            font-size: 28px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-icon:hover {
+            background: #e8e8e8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .nav-icon.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* Système d'affichage des sections */
+        .tool-section {
+            display: none;
+        }
+
+        .tool-section.active {
+            display: block;
         }
 
         .container {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            align-items: center;
+            gap: 0;
+            align-items: stretch;
+            max-width: 100%;
         }
 
         .button-container {
@@ -39,7 +188,13 @@
             justify-content: center;
             color: white;
             cursor: pointer;
-            transition: background-color 0.3s, opacity 0.3s;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .icon-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
         }
 
         #stopRecording {
@@ -64,12 +219,21 @@
 
         textarea {
             width: 100%;
-            height: 150px;
+            height: 100px;
             margin-bottom: 10px;
             border-radius: 8px;
-            padding: 10px;
+            padding: 12px;
             box-sizing: border-box;
             resize: vertical;
+            border: 2px solid #e0e0e0;
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
         }
 
         button:hover {
@@ -86,54 +250,191 @@
             max-height: 60%;
         }
 
-        /* Section Styles */
+        /* Section Styles - Unified Design */
         .section {
             width: 100%;
-            background-color: white;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            max-width: 100%;
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
         }
 
-        .section-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #4caf50;
+        /* Unified Title Styles for all sections */
+        .section-title,
+        #clipboard-history h3,
+        #large-display h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 12px 0;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            color: white;
+            text-align: left;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+            border: none;
+            letter-spacing: 0.3px;
+        }
+
+        /* Different gradient for each section */
+        #clipboard-history h3 {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+
+        #large-display h3 {
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
         }
 
         .section-description {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 12px;
-            line-height: 1.4;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 16px;
+            line-height: 1.6;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #4caf50;
+            display: none;
+            overflow: hidden;
+            transition: all 0.3s ease;
         }
 
-        /* Clipboard History Styles */
-        #clipboard-history {
-            width: 100%;
+        .section-description.show {
+            display: block;
+        }
+
+        /* Info icon styles */
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            margin-left: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            vertical-align: middle;
+        }
+
+        .info-icon:hover {
+            background-color: rgba(255, 255, 255, 0.5);
+            transform: scale(1.1);
+        }
+
+        /* Toggle Switch Styles */
+        .toggle-container {
+            display: inline-flex;
+            align-items: center;
+            margin-left: auto;
+            gap: 8px;
+        }
+
+        .clear-all-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 10px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            margin-left: auto;
+            line-height: 1;
+            min-width: 38px;
+        }
+
+        .clear-all-btn:hover {
+            background-color: #d32f2f;
+            transform: scale(1.05);
+        }
+
+        .trash-icon {
+            filter: grayscale(1) brightness(10);
+            display: inline-block;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked+.toggle-slider {
+            background-color: #2196F3;
+        }
+
+        .toggle-switch input:checked+.toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        .toggle-label {
+            font-size: 12px;
+            color: white;
+            font-weight: 600;
         }
 
         #clipboard-history h3 {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #2196F3;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
+        /* Clipboard History Styles */
+
         .clipboard-instructions {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 12px;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 16px;
             padding: 10px;
             background-color: #e3f2fd;
-            border-radius: 5px;
-            line-height: 1.5;
+            border-radius: 8px;
+            line-height: 1.6;
+            border-left: 4px solid #2196F3;
+            display: none;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .clipboard-instructions.show {
+            display: block;
         }
 
         kbd {
@@ -312,18 +613,13 @@
         }
 
         /* Large Display Section */
-        #large-display h3 {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #FF9800;
+        #large-display .section-description {
+            border-left-color: #FF9800;
         }
 
         #displayText {
             width: 100%;
-            min-height: 80px;
+            min-height: 60px;
             margin-bottom: 10px;
             border-radius: 8px;
             padding: 10px;
@@ -355,15 +651,130 @@
         .display-btn:active {
             transform: translateY(0);
         }
+
+        /* Contrôles de la loupe */
+        .magnifier-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 16px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-group input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-group span {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+            text-align: right;
+        }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <!-- Section 1: Dictée et Transcription -->
-        <div class="section">
-            <div class="section-title">🎤 Dictée et Transcription</div>
-            <div class="section-description">
+    <!-- Bouton pour réduire la sidebar injectée -->
+    <button id="collapseSidebarBtn" class="collapse-sidebar-btn" title="Réduire la sidebar">
+        <span class="line"></span>
+        <span class="line"></span>
+    </button>
+
+    <!-- Bouton pour fermer complètement la sidebar -->
+    <button id="closeSidebarBtn" class="close-sidebar-btn" title="Fermer ToolWeb">✕</button>
+
+    <div class="main-card" id="mainCard">
+        <!-- Navigation par icônes -->
+        <div class="icon-nav">
+            <button class="nav-icon active" data-section="magnifier" title="Loupe">🔍</button>
+            <button class="nav-icon" data-section="display" title="Affichage en grand">📺</button>
+            <button class="nav-icon" data-section="dictation" title="Dictée et Transcription">🎤</button>
+            <button class="nav-icon" data-section="clipboard" title="Presse-papiers">📋</button>
+            <button class="nav-icon" data-section="translation" title="Traduction">🌐</button>
+        </div>
+
+        <div class="container">
+            <!-- Section 0: Loupe -->
+            <div class="section tool-section active" data-section="magnifier">
+                <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>🔍 Loupe<span class="info-icon" data-desc-id="desc-magnifier">i</span></span>
+
+                    <!-- Toggle ON/OFF pour activer la loupe -->
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggleMagnifier">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="section-description" id="desc-magnifier">
+                    Activez le toggle ci-dessus pour activer la loupe. Ajustez les paramètres ci-dessous.
+                </div>
+
+                <div class="magnifier-controls">
+                    <div class="control-group">
+                        <label for="magnifierSize">Taille de la loupe</label>
+                        <input type="range" id="magnifierSize" min="100" max="400" value="200" step="10">
+                        <span id="magnifierSizeValue">200px</span>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="magnifierDarkness">Degré d'isolement (obscurité)</label>
+                        <input type="range" id="magnifierDarkness" min="0" max="100" value="70" step="5">
+                        <span id="magnifierDarknessValue">70%</span>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="magnifierZoom">Agrandissement (zoom)</label>
+                        <input type="range" id="magnifierZoom" min="1" max="5" value="1" step="0.1">
+                        <span id="magnifierZoomValue">1.0x</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 1: Dictée et Transcription -->
+        <div class="section tool-section" data-section="dictation">
+            <div class="section-title">🎤 Dictée et Transcription<span class="info-icon"
+                    data-desc-id="desc-dictee">i</span></div>
+            <div class="section-description" id="desc-dictee">
                 Enregistrez votre voix, transcrivez-la automatiquement, nettoyez le texte ou générez un email
                 professionnel.
             </div>
@@ -385,9 +796,18 @@
         </div>
 
         <!-- Section 2: Presse-papiers -->
-        <div class="section" id="clipboard-history">
-            <h3>📋 Presse-papiers</h3>
-            <div class="clipboard-instructions">
+        <div class="section tool-section" id="clipboard-history" data-section="clipboard">
+            <h3>
+                <span>📋 Presse-papiers<span class="info-icon" data-desc-id="desc-clipboard">i</span></span>
+                <div class="toggle-container">
+                    <span class="toggle-label">Capture</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="clipboardToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </h3>
+            <div class="clipboard-instructions" id="desc-clipboard">
                 <strong>Comment ça marche :</strong><br>
                 1. Copiez du texte sur n'importe quelle page web (<kbd>Ctrl+C</kbd> ou <kbd>Cmd+C</kbd>)<br>
                 2. Le texte apparaîtra automatiquement ici<br>
@@ -396,6 +816,8 @@
             <div class="quick-phrases">
                 <button class="quick-phrase-btn" data-phrase="Cordialement">Cordialement</button>
                 <button class="quick-phrase-btn" data-phrase="Bien à toi">Bien à toi</button>
+                <button class="quick-phrase-btn" data-phrase="Comprends-tu ma demande?">Comprends-tu ma demande?</button>
+                <button id="clearAllHistory" class="clear-all-btn" title="Effacer tout l'historique"><span class="trash-icon">🗑️</span></button>
             </div>
             <div class="custom-phrase-container">
                 <input type="text" id="customPhraseInput" placeholder="Tapez votre texte et appuyez sur Enter..." />
@@ -406,9 +828,9 @@
         </div>
 
         <!-- Section 3: Affichage en grand -->
-        <div class="section" id="large-display">
-            <h3>📺 Affichage en grand</h3>
-            <div class="section-description">
+        <div class="section tool-section" id="large-display" data-section="display">
+            <h3>📺 Affichage en grand<span class="info-icon" data-desc-id="desc-display">i</span></h3>
+            <div class="section-description" id="desc-display">
                 Affichez du texte en très grand sur la page web active (idéal pour les formations, mots de passe, codes,
                 etc.)
             </div>
@@ -416,6 +838,67 @@
             <button id="showLargeDisplay" class="display-btn">Afficher en grand</button>
         </div>
 
+        <!-- Section 4: Traduction -->
+        <div class="section tool-section" id="translation" data-section="translation">
+            <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>🌐 Traduction<span class="info-icon" data-desc-id="desc-translation">i</span></span>
+
+                <!-- Toggle ON/OFF pour activer la traduction -->
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggleTranslation">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="section-description" id="desc-translation">
+                <strong>Mode d'emploi :</strong><br>
+                1. Activez le toggle ci-dessus<br>
+                2. Cliquez sur un mot dans la page web<br>
+                3. La traduction apparaît au-dessus du mot<br>
+                4. Cliquez à nouveau pour retirer la traduction<br>
+                5. Cliquez sur des mots adjacents pour une traduction contextuelle
+            </div>
+
+            <div class="translation-controls">
+                <div class="control-group">
+                    <label for="sourceLanguage">Langue source</label>
+                    <select id="sourceLanguage" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px;">
+                        <option value="auto">Détection automatique</option>
+                        <option value="en">Anglais</option>
+                        <option value="fr">Français</option>
+                        <option value="es">Espagnol</option>
+                        <option value="de">Allemand</option>
+                        <option value="it">Italien</option>
+                        <option value="pt">Portugais</option>
+                        <option value="nl">Néerlandais</option>
+                        <option value="pl">Polonais</option>
+                        <option value="ru">Russe</option>
+                        <option value="zh-CN">Chinois (simplifié)</option>
+                        <option value="ja">Japonais</option>
+                        <option value="ar">Arabe</option>
+                    </select>
+                </div>
+<p></p>
+                <div class="control-group">
+                    <label for="targetLanguage">Langue cible</label>
+                    <select id="targetLanguage" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px;">
+                        <option value="fr" selected>Français</option>
+                        <option value="en">Anglais</option>
+                        <option value="es">Espagnol</option>
+                        <option value="de">Allemand</option>
+                        <option value="it">Italien</option>
+                        <option value="pt">Portugais</option>
+                        <option value="nl">Néerlandais</option>
+                        <option value="pl">Polonais</option>
+                        <option value="ru">Russe</option>
+                        <option value="zh-CN">Chinois (simplifié)</option>
+                        <option value="ja">Japonais</option>
+                        <option value="ar">Arabe</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        </div>
     </div>
     <script src="config.js"></script>
     <script src="sidepanel.js"></script>
