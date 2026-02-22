@@ -40,7 +40,8 @@
       ],
       "css": [
         "sidebar.css"
-      ]
+      ],
+      "all_frames": true
     }
   ],
   "web_accessible_resources": [
@@ -51,5 +52,11 @@
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "toolweb@extension",
+      "strict_min_version": "109.0"
+    }
   }
 }

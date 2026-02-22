@@ -1,5 +1,6 @@
 // content.js
-console.log('✅ ToolWeb content script loaded on:', window.location.href);
+const isTopFrame = (window === window.top);
+console.log(`✅ ToolWeb content script loaded on: ${window.location.href} (${isTopFrame ? 'top frame' : 'iframe'})`);
 
 // ========================================
 // SIDEBAR INJECTÉE (comme Hypothesis)
@@ -228,14 +229,26 @@ function clearAllTranslations() {
 }
 
 function getWordAtPosition(e) {
-    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-    if (!range) return null;
+    let textNode, offset;
 
-    const textNode = range.startContainer;
+    // Chrome/Edge: caretRangeFromPoint, Firefox: caretPositionFromPoint
+    if (document.caretRangeFromPoint) {
+        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+        if (!range) return null;
+        textNode = range.startContainer;
+        offset = range.startOffset;
+    } else if (document.caretPositionFromPoint) {
+        const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+        if (!pos) return null;
+        textNode = pos.offsetNode;
+        offset = pos.offset;
+    } else {
+        return null;
+    }
+
     if (textNode.nodeType !== Node.TEXT_NODE) return null;
 
     const text = textNode.textContent;
-    const offset = range.startOffset;
 
     // Regex qui supporte les caractères Unicode (accents, œ, etc.) et les apostrophes
     const wordRegex = /[\p{L}\p{M}'']+/gu;
@@ -643,8 +656,9 @@ document.addEventListener('click', async function(e) {
 // FIN TRADUCTION RAPIDE
 // ========================================
 
-// Écouter les messages postMessage depuis l'iframe
+// Écouter les messages postMessage depuis l'iframe (uniquement dans le top frame)
 window.addEventListener('message', function(event) {
+    if (!isTopFrame) return; // Les iframes ne gèrent pas les messages sidebar
     // Vérifier que le message vient de notre iframe
     if (event.data && event.data.type === 'toolweb_message') {
         console.log('📩 Message reçu de l\'iframe:', event.data.action);
@@ -662,7 +676,7 @@ window.addEventListener('message', function(event) {
         } else if (action === 'update_magnifier') {
             updateMagnifierSettings(event.data.params);
         } else if (action === 'show_large_display') {
-            showLargeTextOverlay(event.data.text);
+            showLargeTextOverlay(event.data.text, event.data.isIcon, event.data.timerMinutes || 0);
         } else if (action === 'paste_text') {
             insertTextAtCursor(event.data.text);
         } else if (action === 'enable_translation') {
@@ -746,8 +760,9 @@ document.addEventListener('copy', (e) => {
     }
 });
 
-// Écouter les messages pour coller du texte
+// Écouter les messages pour coller du texte (sidebar/loupe/affichage uniquement dans le top frame)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (!isTopFrame) return; // Les iframes ne gèrent pas ces actions
     if (request.action === "toggle_sidebar") {
         console.log('🔄 Demande de toggle de la sidebar');
         toggleSidebar();
@@ -971,143 +986,209 @@ function showPasteNotification(message) {
     }, 3000);
 }
 
-function showLargeTextOverlay(text) {
-    // Supprimer l'overlay existant s'il y en a un
+function showLargeTextOverlay(text, isIcon, timerMinutes) {
+    // Supprimer l'overlay existant + timer
     const existingOverlay = document.getElementById('toolweb-large-overlay');
-    if (existingOverlay) {
-        existingOverlay.remove();
-    }
+    if (existingOverlay) existingOverlay.remove();
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
 
-    // Créer l'overlay avec fond plus transparent
     const overlay = document.createElement('div');
     overlay.id = 'toolweb-large-overlay';
     overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.65);
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, ${isIcon ? '0.88' : '0.65'});
         z-index: 2147483647;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        display: flex; align-items: center; justify-content: center;
         animation: fadeIn 0.3s ease;
     `;
 
-    // Créer le conteneur de texte
     const textContainer = document.createElement('div');
-    textContainer.style.cssText = `
-        background: white;
-        padding: 60px 80px;
-        border-radius: 20px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-        max-width: 90%;
-        max-height: 80%;
-        overflow: auto;
-        text-align: center;
-        animation: slideIn 0.4s ease;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 30px;
-    `;
-
-    // Créer le texte
     const textElement = document.createElement('div');
-    textElement.style.cssText = `
-        font-size: 72px;
-        font-weight: bold;
-        color: #333;
-        line-height: 1.3;
-        word-wrap: break-word;
-        font-family: 'Arial', sans-serif;
-    `;
-    textElement.textContent = text;
 
-    // Créer le conteneur QR Code
-    const qrContainer = document.createElement('div');
-    qrContainer.style.cssText = `
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-    `;
+    if (isIcon) {
+        // === MODE ICÔNE : plein écran, fond sombre, pas de cadre ===
+        const parts = text.split('\n');
+        const emoji = parts[0] || '';
+        const label = parts[1] || '';
 
-    const qrTitle = document.createElement('div');
-    qrTitle.style.cssText = `
-        font-size: 16px;
-        color: #666;
-        font-weight: 600;
-    `;
-    qrTitle.textContent = '📱 Scannez pour copier le texte';
+        textContainer.style.cssText = `
+            background: transparent; padding: 0; box-shadow: none;
+            max-width: 100%; max-height: 100%; text-align: center;
+            animation: slideIn 0.4s ease;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 10px;
+        `;
 
-    const qrImage = document.createElement('img');
-    // Utiliser l'API QR Code gratuite
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(text)}`;
-    qrImage.src = qrCodeUrl;
-    qrImage.style.cssText = `
-        width: 200px;
-        height: 200px;
-        border: 3px solid #333;
-        border-radius: 10px;
-    `;
-    qrImage.alt = 'QR Code';
+        textElement.style.cssText = `
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+        `;
 
-    qrContainer.appendChild(qrTitle);
-    qrContainer.appendChild(qrImage);
+        const emojiEl = document.createElement('div');
+        emojiEl.style.cssText = `
+            font-size: ${timerMinutes > 0 ? '30vmin' : '45vmin'};
+            line-height: 1;
+            filter: drop-shadow(0 8px 20px rgba(0,0,0,0.3));
+        `;
+        emojiEl.textContent = emoji;
 
-    // Créer le bouton de fermeture
-    const closeButton = document.createElement('button');
-    closeButton.textContent = '✕ Fermer';
+        const labelEl = document.createElement('div');
+        labelEl.style.cssText = `
+            font-size: ${timerMinutes > 0 ? '5vmin' : '8vmin'};
+            font-weight: 900; color: white; letter-spacing: 6px;
+            font-family: 'Arial', sans-serif;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            text-transform: uppercase;
+        `;
+        labelEl.textContent = label;
 
-    // Calculer la position en fonction de la sidebar
+        textElement.appendChild(emojiEl);
+        textElement.appendChild(labelEl);
+
+        // === MINUTEUR INTÉGRÉ (si activé) ===
+        if (timerMinutes > 0) {
+            let totalSeconds = timerMinutes * 60;
+
+            function formatTime(s) {
+                const m = Math.floor(s / 60);
+                const sec = s % 60;
+                return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+            }
+
+            const timerEl = document.createElement('div');
+            timerEl.style.cssText = `
+                font-size: 18vmin; font-weight: 800; color: white;
+                font-family: 'Segoe UI', monospace;
+                letter-spacing: 4px; line-height: 1;
+                text-shadow: 0 4px 16px rgba(0,0,0,0.4);
+                margin-top: 2vmin;
+            `;
+            timerEl.textContent = formatTime(totalSeconds);
+            textElement.appendChild(timerEl);
+
+            // Boutons pause/stop sous le timer
+            const btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display: flex; gap: 16px; margin-top: 2vmin;';
+
+            const pauseBtn = document.createElement('button');
+            let isPaused = false;
+            pauseBtn.textContent = '⏸ Pause';
+            pauseBtn.style.cssText = `
+                padding: 12px 28px; border: none; border-radius: 10px;
+                background: rgba(255,255,255,0.2); color: white;
+                font-size: 18px; font-weight: 700; cursor: pointer;
+                transition: all 0.2s; backdrop-filter: blur(4px);
+            `;
+            pauseBtn.onmouseover = () => pauseBtn.style.background = 'rgba(255,255,255,0.3)';
+            pauseBtn.onmouseout = () => pauseBtn.style.background = 'rgba(255,255,255,0.2)';
+            pauseBtn.onclick = (e) => {
+                e.stopPropagation();
+                isPaused = !isPaused;
+                pauseBtn.textContent = isPaused ? '▶ Reprendre' : '⏸ Pause';
+            };
+            btnRow.appendChild(pauseBtn);
+            textElement.appendChild(btnRow);
+
+            // Lancer le décompte
+            timerInterval = setInterval(() => {
+                if (isPaused) return;
+                totalSeconds--;
+
+                if (totalSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    timerEl.textContent = '00:00';
+                    timerEl.style.color = '#ff5252';
+
+                    // Remplacer emoji par cloche
+                    emojiEl.textContent = '🔔';
+
+                    // Clignotement
+                    let blink = true;
+                    const blinkInterval = setInterval(() => {
+                        overlay.style.background = blink ? 'rgba(255,60,0,0.85)' : 'rgba(0,0,0,0.88)';
+                        blink = !blink;
+                    }, 500);
+                    setTimeout(() => { clearInterval(blinkInterval); overlay.style.background = 'rgba(0,0,0,0.88)'; }, 6000);
+
+                    // Sonnerie x3
+                    playBellSound();
+                    setTimeout(() => playBellSound(), 2000);
+                    setTimeout(() => playBellSound(), 4000);
+
+                    pauseBtn.style.display = 'none';
+                    return;
+                }
+
+                timerEl.textContent = formatTime(totalSeconds);
+                if (totalSeconds <= 10) {
+                    timerEl.style.color = '#ff5252';
+                } else if (totalSeconds <= 30) {
+                    timerEl.style.color = '#ffab40';
+                }
+            }, 1000);
+        }
+    } else {
+        // === MODE TEXTE LIBRE (comportement original) ===
+        textContainer.style.cssText = `
+            background: white; padding: 60px 80px; border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            max-width: 90%; max-height: 80%; overflow: auto; text-align: center;
+            animation: slideIn 0.4s ease;
+            display: flex; flex-direction: column; align-items: center; gap: 30px;
+        `;
+        textElement.style.cssText = `
+            font-size: 72px; font-weight: bold; color: #333;
+            line-height: 1.3; word-wrap: break-word; font-family: 'Arial', sans-serif;
+        `;
+        textElement.textContent = text;
+
+        // QR Code uniquement pour le texte libre
+        const qrContainer = document.createElement('div');
+        qrContainer.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 10px;';
+        const qrTitle = document.createElement('div');
+        qrTitle.style.cssText = 'font-size: 16px; color: #666; font-weight: 600;';
+        qrTitle.textContent = '📱 Scannez pour copier le texte';
+        const qrImage = document.createElement('img');
+        qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(text)}`;
+        qrImage.style.cssText = 'width: 200px; height: 200px; border: 3px solid #333; border-radius: 10px;';
+        qrImage.alt = 'QR Code';
+        qrContainer.appendChild(qrTitle);
+        qrContainer.appendChild(qrImage);
+        textContainer.appendChild(textElement);
+        textContainer.appendChild(qrContainer);
+    }
+
+    // Bouton fermer
     const sidebar = document.getElementById('toolweb-sidebar-container');
     const sidebarWidth = sidebar ? (sidebar.classList.contains('collapsed') ? 40 : 476) : 0;
-    const rightPosition = sidebarWidth + 30; // Largeur sidebar + marge
-
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '✕ Fermer';
     closeButton.style.cssText = `
-        position: absolute;
-        top: 30px;
-        right: ${rightPosition}px;
-        background: #f44336;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 15px 30px;
-        font-size: 18px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.2s;
+        position: absolute; top: 30px; right: ${sidebarWidth + 30}px;
+        background: #f44336; color: white; border: none; border-radius: 8px;
+        padding: 15px 30px; font-size: 18px; font-weight: bold;
+        cursor: pointer; transition: all 0.2s;
         box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
     `;
-    closeButton.onmouseover = () => {
-        closeButton.style.background = '#d32f2f';
-        closeButton.style.transform = 'scale(1.05)';
+    closeButton.onmouseover = () => { closeButton.style.background = '#d32f2f'; closeButton.style.transform = 'scale(1.05)'; };
+    closeButton.onmouseout = () => { closeButton.style.background = '#f44336'; closeButton.style.transform = 'scale(1)'; };
+    closeButton.onclick = () => {
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        overlay.remove();
     };
-    closeButton.onmouseout = () => {
-        closeButton.style.background = '#f44336';
-        closeButton.style.transform = 'scale(1)';
-    };
-    closeButton.onclick = () => overlay.remove();
 
-    // Ajouter les styles d'animation
+    // Animations
     const style = document.createElement('style');
     style.textContent = `
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes slideIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     `;
     document.head.appendChild(style);
 
-    // Assembler l'overlay
-    textContainer.appendChild(textElement);
-    textContainer.appendChild(qrContainer);
+    // Assembler
+    if (isIcon) {
+        textContainer.appendChild(textElement);
+    }
     overlay.appendChild(textContainer);
     overlay.appendChild(closeButton);
     document.body.appendChild(overlay);
@@ -1115,20 +1196,72 @@ function showLargeTextOverlay(text) {
     // Fermer avec Escape
     const handleEscape = (e) => {
         if (e.key === 'Escape') {
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
             overlay.remove();
             document.removeEventListener('keydown', handleEscape);
         }
     };
     document.addEventListener('keydown', handleEscape);
 
-    // Fermer en cliquant sur le fond
+    // Fermer en cliquant sur le fond (pas sur les boutons)
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
             overlay.remove();
         }
     });
 
-    console.log('✅ Overlay affiché avec le texte:', text);
+    console.log('✅ Overlay affiché:', isIcon ? 'icône' : 'texte', timerMinutes > 0 ? `+ minuteur ${timerMinutes}min` : '');
+}
+
+// ========================================
+// MINUTEUR AVEC SONNERIE
+// ========================================
+
+let timerInterval = null;
+
+function playBellSound() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playBell(startTime) {
+            // Oscillateur principal (ton de cloche)
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(830, startTime);
+            osc.frequency.exponentialRampToValueAtTime(620, startTime + 0.3);
+
+            // Harmonique pour richesse sonore
+            const osc2 = audioCtx.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(1660, startTime);
+            osc2.frequency.exponentialRampToValueAtTime(1240, startTime + 0.2);
+
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.4, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.8);
+
+            const gain2 = audioCtx.createGain();
+            gain2.gain.setValueAtTime(0.15, startTime);
+            gain2.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5);
+
+            osc.connect(gain).connect(audioCtx.destination);
+            osc2.connect(gain2).connect(audioCtx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.8);
+            osc2.start(startTime);
+            osc2.stop(startTime + 0.5);
+        }
+
+        // 3 coups de cloche
+        const now = audioCtx.currentTime;
+        playBell(now);
+        playBell(now + 0.9);
+        playBell(now + 1.8);
+    } catch (e) {
+        console.warn('⚠️ Impossible de jouer le son:', e);
+    }
 }
 
 // Variables globales pour la loupe
@@ -1158,11 +1291,60 @@ function activateMagnifier() {
     magnifierSettings.zoom = 1.0;
     console.log('✅ Zoom réinitialisé à 1.0');
 
+    // Créer l'overlay SVG qui couvre toute la page (y compris les iframes)
+    // Le SVG utilise un mask avec un trou circulaire pour l'effet loupe
+    const overlay = document.createElement('div');
+    overlay.id = 'toolweb-magnifier-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 2147483645;
+        display: none;
+    `;
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '100%');
+    svg.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%;';
+
+    const defs = document.createElementNS(svgNS, 'defs');
+    const mask = document.createElementNS(svgNS, 'mask');
+    mask.setAttribute('id', 'toolweb-magnifier-mask');
+
+    const maskBg = document.createElementNS(svgNS, 'rect');
+    maskBg.setAttribute('width', '100%');
+    maskBg.setAttribute('height', '100%');
+    maskBg.setAttribute('fill', 'white');
+
+    const maskHole = document.createElementNS(svgNS, 'circle');
+    maskHole.setAttribute('id', 'toolweb-mask-hole');
+    maskHole.setAttribute('r', String(magnifierSettings.size / 2));
+    maskHole.setAttribute('fill', 'black');
+
+    mask.appendChild(maskBg);
+    mask.appendChild(maskHole);
+    defs.appendChild(mask);
+    svg.appendChild(defs);
+
+    const overlayRect = document.createElementNS(svgNS, 'rect');
+    overlayRect.setAttribute('id', 'toolweb-overlay-rect');
+    overlayRect.setAttribute('width', '100%');
+    overlayRect.setAttribute('height', '100%');
+    overlayRect.setAttribute('fill', `rgba(0, 0, 0, ${magnifierSettings.darkness / 100})`);
+    overlayRect.setAttribute('mask', 'url(#toolweb-magnifier-mask)');
+    svg.appendChild(overlayRect);
+
+    overlay.appendChild(svg);
+    document.body.appendChild(overlay);
+
     // Créer le conteneur de la loupe (cercle avec bordure)
     const magnifier = document.createElement('div');
     magnifier.id = 'toolweb-magnifier';
-    const radius = magnifierSettings.size / 2;
-    const darknessValue = magnifierSettings.darkness / 100;
 
     magnifier.style.cssText = `
         position: fixed;
@@ -1173,7 +1355,6 @@ function activateMagnifier() {
         pointer-events: none;
         z-index: 2147483646;
         background: transparent;
-        box-shadow: 0 0 0 9999px rgba(0, 0, 0, ${darknessValue});
         display: none;
         overflow: hidden;
     `;
@@ -1245,6 +1426,17 @@ function activateMagnifier() {
         magnifier.style.left = (currentMouseX - radius) + 'px';
         magnifier.style.top = (currentMouseY - radius) + 'px';
         magnifier.style.display = 'block';
+
+        // Mettre à jour le trou SVG de l'overlay
+        const maskHole = document.getElementById('toolweb-mask-hole');
+        const magnifierOverlay = document.getElementById('toolweb-magnifier-overlay');
+        if (maskHole) {
+            maskHole.setAttribute('cx', String(currentMouseX));
+            maskHole.setAttribute('cy', String(currentMouseY));
+        }
+        if (magnifierOverlay) {
+            magnifierOverlay.style.display = 'block';
+        }
 
         // Si zoom > 1, afficher le contenu agrandi
         if (magnifierSettings.zoom > 1.0) {
@@ -1365,9 +1557,15 @@ function updateMagnifierSettings(params) {
         magnifier.style.width = magnifierSettings.size + 'px';
         magnifier.style.height = magnifierSettings.size + 'px';
 
-        // Mettre à jour l'obscurité (box-shadow)
-        const darknessValue = magnifierSettings.darkness / 100;
-        magnifier.style.boxShadow = `0 0 0 9999px rgba(0, 0, 0, ${darknessValue})`;
+        // Mettre à jour l'overlay SVG (taille du trou et obscurité)
+        const maskHole = document.getElementById('toolweb-mask-hole');
+        if (maskHole) {
+            maskHole.setAttribute('r', String(magnifierSettings.size / 2));
+        }
+        const overlayRect = document.getElementById('toolweb-overlay-rect');
+        if (overlayRect) {
+            overlayRect.setAttribute('fill', `rgba(0, 0, 0, ${magnifierSettings.darkness / 100})`);
+        }
 
         console.log('✅ Styles DOM mis à jour');
     } else {

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ToolWeb</title>
+  <style>
+    body {
+      width: 400px;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .button-container {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .icon-button {
+      background-color: #4caf50;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s, opacity 0.3s;
+    }
+
+    #stopRecording {
+      background-color: #ef5350;
+    }
+
+    #cleanText {
+      background-color: #ab47bc;
+    }
+
+    #copyText {
+      background-color: #42a5f5;
+    }
+
+    #restartRecording {
+      background-color: #f57c00;
+    }
+
+    #writeEmail {
+      background-color: #8B4513;
+    }
+
+    textarea {
+      width: 100%;
+      height: 150px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      padding: 10px;
+      box-sizing: border-box;
+      resize: both;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    img {
+      max-width: 60%;
+      /* Réduction de 40% de la taille initiale */
+      max-height: 60%;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <textarea id="transcribedText" placeholder="Texte transcrit ici..." readonly></textarea>
+    <div class="button-container">
+      <button id="startRecording" class="icon-button"><img src="images/microphoneBlanc.png" alt="Enregistrer"></button>
+      <button id="stopRecording" class="icon-button" disabled><img src="images/stopBlanc.png" alt="Stop"></button>
+      <button id="cleanText" class="icon-button"><img src="images/pinceau.png" alt="Nettoyer"></button>
+      <button id="copyText" class="icon-button"><img src="images/copyBlanc.png" alt="Copier"></button>
+      <button id="restartRecording" class="icon-button"><img src="images/flècheRecommencer.png"
+          alt="Recommencer"></button>
+      <button id="writeEmail" class="icon-button"><img src="images/mail.png" alt="Email"></button>
+    </div>
+
+  </div>
+  <script src="popup.js"></script>
+</body>
+
+</html>

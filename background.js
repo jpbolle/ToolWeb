@@ -17,7 +17,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "text_copied") {
     console.log('💾 Sauvegarde du texte dans l\'historique:', request.text.substring(0, 50) + '...');
     saveToHistory(request.text);
+    sendResponse({ success: true });
   }
+  return true; // Garder le canal ouvert pour les réponses asynchrones
 });
 
 function saveToHistory(text) {

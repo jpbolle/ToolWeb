@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "ToolWeb",
+  "version": "2.3",
+  "description": "Extension pour dicter du texte, le transcrire avec Whisper et le nettoyer avec l'IA.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "clipboardWrite",
+    "clipboardRead",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "action": {
+    "default_title": "Ouvrir ToolWeb",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "sidebar.css"
+      ],
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["sidepanel.html", "sidepanel.js", "config.js", "images/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "toolweb@extension",
+      "strict_min_version": "109.0"
+    }
+  }
+}

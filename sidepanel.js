@@ -352,6 +352,49 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // État du minuteur (activé/désactivé pour les icônes)
+  let timerEnabled = false;
+
+  // Gestionnaire pour le toggle minuteur
+  const timerToggleBtn = document.getElementById('timerToggleBtn');
+  const timerSection = document.getElementById('timerSection');
+  const timerMinusBtn = document.getElementById('timerMinus');
+  const timerPlusBtn = document.getElementById('timerPlus');
+  const timerMinutesInput = document.getElementById('timerMinutes');
+
+  if (timerToggleBtn && timerSection) {
+    timerToggleBtn.addEventListener('click', function () {
+      timerEnabled = !timerEnabled;
+      timerSection.style.display = timerEnabled ? 'flex' : 'none';
+      timerToggleBtn.classList.toggle('active', timerEnabled);
+    });
+
+    timerMinusBtn.addEventListener('click', () => {
+      timerMinutesInput.value = Math.max(1, parseInt(timerMinutesInput.value) - 1);
+    });
+    timerPlusBtn.addEventListener('click', () => {
+      timerMinutesInput.value = Math.min(120, parseInt(timerMinutesInput.value) + 1);
+    });
+  }
+
+  // Gestionnaires pour les icônes rapides d'affichage
+  // Envoie l'icône + optionnellement les minutes si le minuteur est activé
+  const quickIconBtns = document.querySelectorAll('.quick-icon-btn');
+  quickIconBtns.forEach(btn => {
+    btn.addEventListener('click', function () {
+      const icon = this.getAttribute('data-display-icon');
+      const label = this.getAttribute('data-display-label');
+      const displayContent = icon + '\n' + label;
+      const minutes = timerEnabled ? (parseInt(timerMinutesInput.value) || 5) : 0;
+      sendMessageToContentScript('show_large_display', {
+        text: displayContent,
+        isIcon: true,
+        timerMinutes: minutes
+      });
+      console.log('✅ Affichage icône:', icon, label, minutes ? `+ minuteur ${minutes}min` : '(sans minuteur)');
+    });
+  });
+
   // Gestionnaires pour les formules rapides
   const quickPhraseBtns = document.querySelectorAll('.quick-phrase-btn');
   quickPhraseBtns.forEach(btn => {

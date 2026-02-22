@@ -1,0 +1,183 @@
+/* Styles pour la sidebar injectée ToolWeb */
+
+#toolweb-sidebar-container {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    z-index: 2147483646;
+    transition: width 0.3s ease;
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+}
+
+/* État agrandi - largeur normale + 2cm (environ 76px) */
+#toolweb-sidebar-container.expanded {
+    width: 476px;
+}
+
+/* État réduit - barre verticale */
+#toolweb-sidebar-container.collapsed {
+    width: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    cursor: pointer;
+}
+
+/* Iframe qui contient le contenu */
+#toolweb-sidebar-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+
+/* Masquer l'iframe quand la sidebar est réduite */
+#toolweb-sidebar-container.collapsed #toolweb-sidebar-iframe {
+    display: none;
+}
+
+/* Bouton toggle sur la barre réduite - bouton circulaire en haut qui déborde à gauche */
+#toolweb-sidebar-toggle {
+    position: absolute;
+    top: 12px;
+    left: 0;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    pointer-events: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+#toolweb-sidebar-toggle:hover {
+    background: linear-gradient(135deg, #7c8ef5 0%, #8a5bb8 100%);
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+}
+
+/* Lignes horizontales sur la barre réduite (empilées verticalement) */
+#toolweb-sidebar-toggle .line-h {
+    width: 14px;
+    height: 2px;
+    background: white;
+    border-radius: 1px;
+}
+
+#toolweb-sidebar-container.collapsed #toolweb-sidebar-toggle {
+    pointer-events: auto;
+}
+
+#toolweb-sidebar-container.expanded #toolweb-sidebar-toggle {
+    display: none;
+}
+
+/* Animation d'apparition */
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+#toolweb-sidebar-container.first-show {
+    animation: slideInFromRight 0.3s ease;
+}
+
+/* ========================================
+   STYLES POUR LA TRADUCTION RAPIDE
+   ======================================== */
+
+/* Curseur point d'interrogation quand traduction active */
+body.toolweb-translation-active,
+body.toolweb-translation-active * {
+    cursor: help !important;
+}
+
+/* Exclure la sidebar du curseur help */
+body.toolweb-translation-active #toolweb-sidebar-container,
+body.toolweb-translation-active #toolweb-sidebar-container * {
+    cursor: default !important;
+}
+
+body.toolweb-translation-active #toolweb-sidebar-container.collapsed {
+    cursor: pointer !important;
+}
+
+.toolweb-word {
+    position: relative !important;
+    display: inline-block !important;
+    cursor: help !important;
+    border-bottom: 1px dashed #667eea;
+    padding-bottom: 2px;
+}
+
+.toolweb-word-selected {
+    background-color: rgba(255, 243, 205, 0.5);
+    border-bottom: 2px solid #667eea;
+    margin-top: 25px; /* Créer l'espace au-dessus pour la traduction */
+}
+
+.toolweb-translation {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: transparent;
+    color: #ff4757;
+    padding: 0;
+    font-size: 14px;
+    font-weight: bold;
+    white-space: nowrap;
+    z-index: 10000;
+    cursor: pointer;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    pointer-events: auto;
+    animation: fadeInTranslation 0.3s ease;
+}
+
+.toolweb-translation:hover {
+    transform: translateX(-50%) scale(1.1);
+    color: #c23616;
+}
+
+.toolweb-translation-loading {
+    background-color: transparent;
+    color: #ffc107;
+    font-style: italic;
+}
+
+.toolweb-translation-error {
+    background-color: transparent;
+    color: #f44336;
+}
+
+/* Ajouter un indicateur visuel sur survol */
+.toolweb-word:hover {
+    background-color: #e8f0ff;
+}
+
+/* Animation d'apparition de la traduction */
+@keyframes fadeInTranslation {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}

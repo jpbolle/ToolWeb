@@ -17,14 +17,13 @@
             margin: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f0f2f5;
-            /* Couleur unie plus sûre */
-            /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); Désactivé pour test */
             box-sizing: border-box;
             min-height: 100vh;
             overflow-x: hidden;
-            /* Éviter le scroll horizontal */
             position: relative;
             transition: padding 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Bouton pour réduire la sidebar injectée - caché car géré par content.js */
@@ -113,6 +112,7 @@
             margin: 12px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
             border: 1px solid rgba(0, 0, 0, 0.08);
+            flex: 1;
         }
 
         /* Navigation par icônes */
@@ -652,6 +652,135 @@
             transform: translateY(0);
         }
 
+        /* Boutons icônes rapides pour affichage en grand */
+        .quick-icons-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .quick-icon-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 10px 4px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            background: #fafafa;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .quick-icon-btn:hover {
+            border-color: #FF9800;
+            background: #fff8e1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(255, 152, 0, 0.2);
+        }
+
+        .quick-icon-btn:active {
+            transform: translateY(0);
+        }
+
+        .quick-icon-btn .icon-emoji {
+            font-size: 32px;
+            line-height: 1;
+        }
+
+        .quick-icon-btn .icon-label {
+            font-size: 10px;
+            color: #555;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        /* Minuteur toggle + config inline */
+        .timer-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .timer-toggle-btn {
+            padding: 8px 14px;
+            border: 2px dashed #FF9800;
+            border-radius: 10px;
+            background: #fff8e1;
+            color: #e65100;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .timer-toggle-btn:hover {
+            background: #ffe0b2;
+        }
+
+        .timer-toggle-btn.active {
+            border-style: solid;
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+            color: white;
+        }
+
+        .timer-section {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .timer-adj-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background: #ef5350;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .timer-adj-btn.timer-adj-plus {
+            background: #4caf50;
+        }
+
+        .timer-adj-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .timer-input {
+            width: 48px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 700;
+            border: 2px solid #ffe0b2;
+            border-radius: 8px;
+            padding: 4px;
+            outline: none;
+        }
+
+        .timer-input:focus {
+            border-color: #FF9800;
+        }
+
+        .timer-unit {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e65100;
+        }
+
         /* Contrôles de la loupe */
         .magnifier-controls {
             display: flex;
@@ -831,10 +960,53 @@
         <div class="section tool-section" id="large-display" data-section="display">
             <h3>📺 Affichage en grand<span class="info-icon" data-desc-id="desc-display">i</span></h3>
             <div class="section-description" id="desc-display">
-                Affichez du texte en très grand sur la page web active (idéal pour les formations, mots de passe, codes,
-                etc.)
+                Affichez du texte ou une icône en très grand sur la page web active (idéal pour la gestion de classe,
+                mots de passe, codes, etc.)
             </div>
-            <textarea id="displayText" placeholder="Entrez le texte à afficher en grand..." rows="3"></textarea>
+
+            <div class="quick-icons-grid">
+                <button class="quick-icon-btn" data-display-icon="🤫" data-display-label="SILENCE" title="Temps d'écoute - Silence">
+                    <span class="icon-emoji">🤫</span>
+                    <span class="icon-label">Silence</span>
+                </button>
+                <button class="quick-icon-btn" data-display-icon="🗣️" data-display-label="ON ÉCHANGE" title="Temps de collaboration">
+                    <span class="icon-emoji">🗣️</span>
+                    <span class="icon-label">Collab</span>
+                </button>
+                <button class="quick-icon-btn" data-display-icon="✋" data-display-label="QUESTIONS ?" title="Levez la main">
+                    <span class="icon-emoji">✋</span>
+                    <span class="icon-label">Questions</span>
+                </button>
+                <button class="quick-icon-btn" data-display-icon="✍️" data-display-label="TRAVAIL INDIVIDUEL" title="Travail individuel en silence">
+                    <span class="icon-emoji">✍️</span>
+                    <span class="icon-label">Travail</span>
+                </button>
+                <button class="quick-icon-btn" data-display-icon="☕" data-display-label="PAUSE" title="Pause">
+                    <span class="icon-emoji">☕</span>
+                    <span class="icon-label">Pause</span>
+                </button>
+                <button class="quick-icon-btn" data-display-icon="👀" data-display-label="REGARDEZ L'ÉCRAN" title="Regardez l'écran">
+                    <span class="icon-emoji">👀</span>
+                    <span class="icon-label">Écran</span>
+                </button>
+                <button class="quick-icon-btn" data-display-icon="⏳" data-display-label="UN INSTANT..." title="Encore un moment, patience">
+                    <span class="icon-emoji">⏳</span>
+                    <span class="icon-label">Patience</span>
+                </button>
+            </div>
+
+            <!-- Minuteur : toggle pour associer un décompte aux icônes -->
+            <div class="timer-row">
+                <button id="timerToggleBtn" class="timer-toggle-btn">⏱️ Minuteur</button>
+                <div id="timerSection" class="timer-section" style="display: none;">
+                    <button id="timerMinus" class="timer-adj-btn">−</button>
+                    <input type="number" id="timerMinutes" value="5" min="1" max="120" class="timer-input">
+                    <span class="timer-unit">min</span>
+                    <button id="timerPlus" class="timer-adj-btn timer-adj-plus">+</button>
+                </div>
+            </div>
+
+            <textarea id="displayText" placeholder="Ou tapez un texte libre à afficher en grand..." rows="3"></textarea>
             <button id="showLargeDisplay" class="display-btn">Afficher en grand</button>
         </div>
 
