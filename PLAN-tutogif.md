@@ -16,7 +16,8 @@ ToolWeb produit un **GIF animé** qui met **les clics en évidence**. Le GIF peu
 
 ## 2. Déroulé voulu par l'utilisateur (non négociable)
 
-1. Dans l'onglet 🎬 de la barre latérale → bouton **« Enregistrer »**.
+1. Dans l'onglet 🎬 de la barre latérale → bouton **« Onglet »** ou **« Écran entier »**
+   (cf. D1).
 2. La barre latérale **se réduit** à sa bande étroite (40 px). Cette bande contient un
    **bouton Stop** (avec un chrono) et rien d'autre d'utile.
 3. Le formateur fait sa démonstration.
@@ -88,6 +89,19 @@ offscreen.js ──GIF prêt──► stockage IndexedDB ──► content.js r�
 À vérifier en phase 0 : avec l'option A, Chrome exige que la capture soit déclenchée par
 un geste de l'utilisateur sur l'extension. Il faut tester qu'un clic dans l'iframe suffit.
 
+> ✅ **Tranché le 2026-10-13 : les deux, au choix à chaque enregistrement.** L'onglet 🎬
+> propose deux boutons : **« Onglet »** (option A, sans fenêtre de choix, curseur dessiné
+> par ToolWeb) et **« Écran entier »** (option B, préférence de l'utilisateur pour « voir
+> large » ; Chrome affiche sa fenêtre de choix, vrai curseur filmé).
+> Conséquences :
+> - permission `tabCapture` (mode Onglet) ; en mode Écran, `getDisplayMedia()` est appelé **dans l'offscreen document** (un flux choisi dans la barre latérale ne peut pas lui être transmis — essai du 2026-10-13 : « Error starting tab capture ») ;
+> - en mode Écran, macOS demande une fois d'autoriser Chrome dans **Réglages Système →
+>   Confidentialité → Enregistrement de l'écran** (sur les deux Mac) ;
+> - le halo de clic ne s'affiche que dans les pages web, pas sur le reste de l'écran ;
+> - le rognage de la bande de 40 px ne vaut qu'en mode Onglet (en mode Écran, sa
+>   position dépend de la fenêtre) ;
+> - phase 0 : vérifier que le flux « Écran » peut être repris par l'offscreen document.
+
 **D2. Bibliothèque d'encodage GIF** (= ajout d'une dépendance → accord obligatoire)
 
 | Option | Commentaire |
@@ -95,14 +109,37 @@ un geste de l'utilisateur sur l'extension. Il faut tester qu'un clic dans l'ifra
 | **`gifenc`** (mattdesl, licence MIT) — *recommandée* | Un seul petit fichier, rapide, maintenu, se copie dans `lib/` |
 | `gif.js` | Ancienne, plusieurs fichiers (*workers*, des scripts qui calculent en arrière-plan) |
 
+> ✅ **Tranché le 2026-10-13 : `gifenc`**, copié dans `lib/`.
+
 **D3. Envoi Drive : automatique dès l'arrêt, ou sur clic d'un bouton ?**
 Recommandation : un **bouton**, car on voudra souvent jeter une prise ratée.
+
+> ✅ **Tranché le 2026-10-13 : bouton « Envoyer vers Drive »**, après l'aperçu.
 
 **D4. Quel projet Google Cloud** porte l'identifiant OAuth (l'autorisation d'accès à
 Drive) ? Réutiliser un projet existant (Firebase de l'utilisateur) ou en créer un dédié.
 Le compte est `cnddinant.be` (Google Workspace) → écran de consentement en mode
 **« Interne »**, sans validation par Google. Droit demandé : `drive.file` (l'extension ne
 voit que les fichiers qu'elle a créés elle-même).
+
+> ✅ **Tranché le 2026-10-13 : projet `gen-lang-client-0679844807`**, renommé de
+> « hgjhessai » en **« ToolWeb »** (organisation `cnddinant.be`, facturation active).
+> Il contient aussi une **clé API Gemini** (créée le 2026-03-05) qu'une autre app utilise
+> peut-être → ne jamais supprimer ce projet ni cette clé sans vérifier.
+
+**D5. Connexion Google et dossier Drive** — ✅ tranché le 2026-10-13 :
+- Chrome est connecté avec le compte `@cnddinant.be` sur les deux Mac → `chrome.identity.getAuthToken`
+  (pas de fenêtre de connexion), client OAuth de type « Extension Chrome ».
+- Dossier **existant et public** (« accès anonyme public », choix assumé : « un tuto, cela se
+  partage ») → les GIF héritent du partage public. Le lien du dossier se colle dans un réglage
+  de l'onglet 🎬.
+- Portée **`drive` complète** (choix de l'utilisateur : extension locale, non déployée), plutôt
+  que `drive.file` + dossier créé par ToolWeb.
+- Identifiant d'extension figé par le champ `key` du manifeste : **`fkelkmjdffkplaldldpfelekabmblimh`**.
+  Clé privée : `~/Documents/toolweb-key.pem`, **hors du dossier** de l'extension (Chrome avertit sinon) ; inutile pour l'extension non empaquetée.
+- API Google Drive activée dans le projet le 2026-10-13.
+- Écran de consentement « Interne » configuré ; client OAuth « Extension Chrome » créé :
+  `1045022749271-bn95r5mkjv8mnhgtsgsji7fv5788u2s5.apps.googleusercontent.com` (bloc `oauth2` du manifeste).
 
 ## 6. Manipulations à la charge de l'utilisateur
 
@@ -127,6 +164,46 @@ voit que les fichiers qu'elle a créés elle-même).
 
 Chaque phase se termine par un test réel dans Chrome avant de passer à la suivante.
 
+> ✅ **Phase 0 — validée le 2026-10-13** par test réel (modes Onglet et Écran entier). Fichiers : `offscreen.html`,
+> `offscreen.js`, `gif-db.js` (accès IndexedDB partagé) ; modifiés : `background.js`,
+> `manifest.json`, `sidepanel.html`, `sidepanel.js`. La vidéo brute (WebM) est gardée
+> dans IndexedDB sous la clé `last-raw`, avec aperçu et téléchargement dans l'onglet 🎬.
+>
+> ✅ **Phase 1 — validée le 2026-10-13** par test réel (Onglet et Écran entier). ⏳ À vérifier
+> plus tard : impression que le GIF « va vite » → test du chronomètre (enregistrer un
+> chronomètre en ligne 15 s, comparer). Le code garde la durée réelle de chaque image.
+> Encodage au fil de l'eau
+> dans `offscreen.js` (lecture des images par `MediaStreamTrackProcessor`, 8 im/s, 960 px,
+> 60 s max, palette `rgb444`) → GIF stocké sous la clé `last-gif`. Bande Stop gérée par
+> `content.js` (état lu dans `chrome.storage.session`, ouvert aux content scripts par
+> `background.js`) ; aperçu en grand = `gif-viewer.html` en iframe plein écran ;
+> bibliothèque `lib/gifenc.esm.js` (v1.0.3, intégrité npm vérifiée).
+>
+> ✅ **Phase 2 — validée le 2026-10-13** en mode Onglet (décompte, halo, curseur, rognage).
+> Mode Écran entier non re-testé après la phase 2 (choix de l'utilisateur, à vérifier à l'occasion).
+> Décompte 3-2-1 affiché par
+> `content.js`, non filmé (`offscreen.js` ignore les images avant `startedAt` et ouvre le GIF
+> sur la dernière image du décompte) ; halo orange au `mousedown` dans tous les cadres
+> (interrupteur mémorisé `gifClickHalo`) ; curseur simulé en mode Onglet ; bande Stop rognée
+> en mode Onglet (40 px / largeur de l'onglet, calculé par `background.js`).
+>
+> ✅ **Phase 3 — validée le 2026-10-13** : GIF envoyé dans le dossier Drive public par test réel.
+> Envoi par `background.js` (`uploadGifToDrive`, multipart, nouvel essai si jeton expiré) ;
+> lien copié automatiquement ; dossier mémorisé dans `chrome.storage.local` (`gifDriveFolderId`).
+>
+> ✅ **Phase 4 — validée le 2026-10-13** (interface approuvée après plusieurs passes). Historique des 10 derniers GIF
+> (clés `gif-<date>` dans IndexedDB, `gifHistoryPrune` ; l'ancien `last-gif` est repris),
+> renommage (champ sous la miniature, nom gardé avec le GIF), 🗑️ du GIF actif (second clic
+> pour confirmer, sans popup ; le fichier Drive reste), réglages en curseurs (`gifSettings`).
+> Interface de l'onglet 🎬 refaite **avec les briques des autres onglets** (demande de
+> l'utilisateur) : bandeau + toggle Halo, tuiles emoji, bouton pointillé ⚙️, encadré de curseurs.
+> Corrigé au passage : miniature limitée à 60 % (règle globale `img`) et capture d'onglet en
+> 640 × 480 avec bandes noires (taille de l'onglet désormais imposée).
+>
+> **Reste à vérifier** : disparition des bandes noires sur un nouveau GIF « Onglet » ; test du
+> chronomètre (vitesse) ; essai « Écran entier » depuis la phase 2. **Autre Mac** : recréer
+> `config.js`, coller le lien du dossier Drive dans ⚙️. **Version** : passée en 2.4 (accord du 2026-10-13).
+
 ## 8. Points de vigilance
 
 - **Poids des GIF** : 256 couleurs, pas de son, lourd au-delà de 30 à 60 s. Limiter la
@@ -134,9 +211,9 @@ Chaque phase se termine par un test réel dans Chrome avant de passer à la suiv
 - **Mémoire** : les images sont gardées jusqu'à l'encodage → plafond de durée obligatoire.
 - **Mise à jour de l'extension** : Chrome peut demander d'accepter les nouvelles
   permissions au rechargement.
-- `AGENTS.md` sera à mettre à jour (nouvel onglet 🎬, offscreen document, Drive).
+- ✅ `AGENTS.md` mis à jour le 2026-10-13 (onglet 🎬, offscreen document, Drive).
 
-## 9. État du dépôt à la fin de cette session (2026-10-13)
+## 9. État du dépôt (mis à jour le 2026-10-13, session suivante)
 
 - 🚨 **Clé OpenAI exposée** : elle était écrite en clair dans `popup.js` et
   `firefox/popup.js` (fichiers « legacy », non utilisés par le manifeste), publiés sur le
@@ -144,11 +221,10 @@ Chaque phase se termine par un test réel dans Chrome avant de passer à la suiv
   - ✅ Corrigé dans le code : les deux fichiers lisent désormais `CONFIG.OPENAI_API_KEY`
     depuis `config.js` (ajouté dans `popup.html` et `firefox/popup.html`). `config.js`
     était déjà exclu par le `.gitignore`.
-  - ⏳ **L'utilisateur révoque la clé** chez OpenAI (elle reste lisible dans l'historique
-    git : seule la révocation la neutralise), puis en crée une nouvelle **uniquement dans
-    `config.js`**.
-  - ⚠️ Pas de `config.js` sur le Mac utilisé pour cette session → la dictée n'y
-    fonctionne pas tant qu'il n'est pas recréé.
-- Modifications **non commitées** : `popup.js`, `popup.html`, `firefox/popup.js`,
-  `firefox/popup.html`, et ce fichier. Le commit revient à l'utilisateur.
+  - ✅ **Ancienne clé révoquée** chez OpenAI (elle reste lisible dans l'historique git,
+    mais ne sert plus à rien).
+  - ✅ Nouvelle clé placée dans `config.js`, testée le 2026-10-13 (réponse OpenAI 200).
+  - ⚠️ `config.js` n'étant pas versionné, il faut le recréer à la main sur **l'autre
+    Mac**. `firefox/config.js` existe mais contient encore le texte du modèle.
+- Corrections commitées dans `edd25e4`.
 - La copie inutile `~/Documents/ToolWeb-main` a été mise à la Corbeille.

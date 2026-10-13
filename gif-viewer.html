@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Aperçu du GIF</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    #gif {
+      max-width: 92vw;
+      max-height: 84vh;
+      border-radius: 8px;
+      background: white;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    #info {
+      color: #ddd;
+      font-size: 14px;
+    }
+
+    #close {
+      position: fixed;
+      top: 20px;
+      right: 24px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: #e74c3c;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    #close:hover {
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body>
+  <!-- Affiché en plein écran par-dessus la page (iframe créé par content.js) -->
+  <button id="close" title="Fermer (Échap)">✕</button>
+  <!-- L'image du GIF est insérée ici par gif-viewer.js une fois lue -->
+  <div id="info"></div>
+  <script src="gif-db.js"></script>
+  <script src="gif-viewer.js"></script>
+</body>
+</html>

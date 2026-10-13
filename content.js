@@ -176,6 +176,211 @@ function removeSidebar() {
 // ========================================
 
 // ========================================
+// TUTO GIF 🎬 : bande Stop, réouverture, aperçu en grand
+// ========================================
+// Pendant l'enregistrement, la barre latérale est masquée et remplacée par une bande
+// étroite (Stop + chrono). Elle apparaît dans tous les onglets, y compris après un
+// changement de page, car l'état est lu dans chrome.storage.session.
+
+let gifBand = null;
+let gifBandTimer = null;
+
+function showGifBand(recording) {
+    document.documentElement.classList.add('toolweb-gif-recording');
+
+    if (!gifBand) {
+        gifBand = document.createElement('div');
+        gifBand.id = 'toolweb-gif-band';
+        gifBand.innerHTML = `
+            <button id="toolweb-gif-stop" title="Arrêter l'enregistrement"><span></span></button>
+            <span id="toolweb-gif-dot"></span>
+            <span id="toolweb-gif-timer">0:00</span>
+        `;
+        gifBand.querySelector('#toolweb-gif-stop').addEventListener('click', () => {
+            console.log('⏹️ Stop demandé depuis la bande');
+            chrome.runtime.sendMessage({ action: 'gif_stop' });
+        });
+        document.body.appendChild(gifBand);
+    }
+
+    clearInterval(gifBandTimer);
+    const timer = gifBand.querySelector('#toolweb-gif-timer');
+    gifBand.classList.toggle('finalizing', !!recording.finalizing);
+    if (recording.finalizing) {
+        timer.textContent = '⏳';
+        return;
+    }
+    const tick = () => {
+        const elapsed = Date.now() - recording.startedAt;
+        if (elapsed < 0) {
+            timer.textContent = String(Math.ceil(-elapsed / 1000)); // compte à rebours
+            return;
+        }
+        const seconds = Math.floor(elapsed / 1000);
+        timer.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    };
+    tick();
+    gifBandTimer = setInterval(tick, 500);
+}
+
+function hideGifBand() {
+    clearInterval(gifBandTimer);
+    document.documentElement.classList.remove('toolweb-gif-recording');
+    if (gifBand) {
+        gifBand.remove();
+        gifBand = null;
+    }
+}
+
+// GIF prêt : la barre latérale réapparaît, ouverte sur l'onglet 🎬
+function openSidebarOnGifSection() {
+    const showGifSection = () => {
+        sidebarIframe.contentWindow.postMessage({ type: 'toolweb_show_section', section: 'gif' }, '*');
+    };
+    if (!sidebarContainer) {
+        createSidebar();
+        sidebarIframe.addEventListener('load', showGifSection, { once: true });
+        setTimeout(() => expandSidebar(), 100);
+    } else {
+        expandSidebar();
+        showGifSection();
+    }
+}
+
+// Aperçu en grand : une page de l'extension en plein écran par-dessus le site
+function showGifPreview(key) {
+    closeGifPreview();
+    const viewer = document.createElement('iframe');
+    viewer.id = 'toolweb-gif-preview';
+    viewer.src = chrome.runtime.getURL('gif-viewer.html') + '?key=' + encodeURIComponent(key);
+    viewer.addEventListener('load', () => viewer.focus(), { once: true });
+    document.body.appendChild(viewer);
+}
+
+function closeGifPreview() {
+    const viewer = document.getElementById('toolweb-gif-preview');
+    if (viewer) viewer.remove();
+}
+
+// --- Habillage du GIF : compte à rebours, halo de clic, curseur simulé ---
+
+let gifState = null;          // enregistrement en cours (copie de chrome.storage.session), ou null
+let gifCountdownEl = null;
+let gifCountdownTimer = null;
+let gifCursorEl = null;
+
+function gifIsFilming() {
+    return gifState && !gifState.finalizing && Date.now() >= gifState.startedAt;
+}
+
+// Grand 3-2-1 au centre de la page ; retiré juste avant le début pour ne pas être filmé
+function showGifCountdown(recording) {
+    hideGifCountdown();
+    if (Date.now() >= recording.startedAt || document.visibilityState !== 'visible') return;
+
+    gifCountdownEl = document.createElement('div');
+    gifCountdownEl.id = 'toolweb-gif-countdown';
+    document.body.appendChild(gifCountdownEl);
+
+    const tick = () => {
+        const remaining = recording.startedAt - Date.now();
+        if (remaining <= 250) {
+            hideGifCountdown();
+            return;
+        }
+        gifCountdownEl.textContent = String(Math.ceil(remaining / 1000));
+    };
+    tick();
+    gifCountdownTimer = setInterval(tick, 50);
+}
+
+function hideGifCountdown() {
+    clearInterval(gifCountdownTimer);
+    if (gifCountdownEl) {
+        gifCountdownEl.remove();
+        gifCountdownEl = null;
+    }
+}
+
+// Halo : cercle orange qui s'élargit à l'endroit du clic (dans chaque cadre de la page)
+document.addEventListener('mousedown', (event) => {
+    if (!gifIsFilming() || !gifState.halo) return;
+    const halo = document.createElement('div');
+    halo.className = 'toolweb-gif-halo';
+    halo.style.left = `${event.clientX}px`;
+    halo.style.top = `${event.clientY}px`;
+    document.documentElement.appendChild(halo);
+    setTimeout(() => halo.remove(), 700);
+}, true);
+
+// Curseur simulé (mode Onglet seulement : Chrome n'y filme pas le vrai curseur)
+function createGifCursor() {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('width', '22');
+    svg.setAttribute('height', '28');
+    svg.setAttribute('viewBox', '0 0 22 28');
+    const arrow = document.createElementNS(svgNS, 'path');
+    arrow.setAttribute('d', 'M2 2 L2 22 L7.5 17 L11 25.5 L14.5 24 L11 15.8 L18.5 15.8 Z');
+    arrow.setAttribute('fill', 'white');
+    arrow.setAttribute('stroke', 'black');
+    arrow.setAttribute('stroke-width', '1.6');
+    arrow.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(arrow);
+
+    gifCursorEl = document.createElement('div');
+    gifCursorEl.id = 'toolweb-gif-cursor';
+    gifCursorEl.appendChild(svg);
+    document.documentElement.appendChild(gifCursorEl);
+}
+
+function removeGifCursor() {
+    if (gifCursorEl) {
+        gifCursorEl.remove();
+        gifCursorEl = null;
+    }
+}
+
+document.addEventListener('mousemove', (event) => {
+    if (!gifState || gifState.finalizing || gifState.mode !== 'tab') return;
+    if (!gifCursorEl) createGifCursor();
+    gifCursorEl.style.display = 'block';
+    gifCursorEl.style.transform = `translate(${event.clientX}px, ${event.clientY}px)`;
+}, true);
+
+// La souris quitte ce cadre (vers un autre cadre ou hors de la page) : on cache sa flèche
+document.addEventListener('mouseout', (event) => {
+    if (gifCursorEl && !event.relatedTarget) gifCursorEl.style.display = 'none';
+}, true);
+
+// Applique l'état de l'enregistrement dans ce cadre (bande et décompte : page principale seulement)
+function applyGifState(recording) {
+    gifState = recording || null;
+    if (!gifState || gifState.finalizing || gifState.mode !== 'tab') removeGifCursor();
+    if (!isTopFrame) return;
+    if (gifState) {
+        showGifBand(gifState);
+        if (!gifState.finalizing) showGifCountdown(gifState);
+        else hideGifCountdown();
+    } else {
+        hideGifBand();
+        hideGifCountdown();
+    }
+}
+
+chrome.storage.session.get('gifRecording')
+    .then((result) => applyGifState(result.gifRecording))
+    .catch(() => { /* accès pas encore ouvert par background.js : rien en cours */ });
+
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'session' && changes.gifRecording) applyGifState(changes.gifRecording.newValue);
+});
+
+// ========================================
+// FIN TUTO GIF
+// ========================================
+
+// ========================================
 // TRADUCTION RAPIDE
 // ========================================
 
@@ -683,6 +888,10 @@ window.addEventListener('message', function(event) {
             enableTranslation(event.data);
         } else if (action === 'disable_translation') {
             disableTranslation();
+        } else if (action === 'show_gif_preview') {
+            showGifPreview(event.data.key);
+        } else if (action === 'close_gif_preview') {
+            closeGifPreview();
         }
     }
 });
@@ -786,6 +995,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else if (request.action === "update_magnifier") {
         console.log('Mise à jour des paramètres de la loupe:', request.params);
         updateMagnifierSettings(request.params);
+        sendResponse({ status: "success" });
+    } else if (request.action === "gif_ready") {
+        console.log('🎬 GIF prêt → réouverture de la barre latérale');
+        hideGifBand();
+        openSidebarOnGifSection();
         sendResponse({ status: "success" });
     }
 });

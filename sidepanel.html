@@ -652,6 +652,397 @@
             transform: translateY(0);
         }
 
+        /* ===== Tuto GIF 🎬 : réutilise les briques des autres onglets ===== */
+        #gif-tool h3 {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 12px 0;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #ef5350 0%, #d32f2f 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            letter-spacing: 0.3px;
+        }
+
+        .gif-gear-btn {
+            background: rgba(255, 255, 255, 0.25);
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: transform 0.2s ease;
+        }
+
+        .gif-gear-btn:hover {
+            transform: rotate(45deg);
+        }
+
+        .gif-settings-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .gif-close-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: #888;
+            cursor: pointer;
+            padding: 2px 6px;
+        }
+
+        .gif-close-btn:hover {
+            color: #333;
+        }
+
+        /* Trois tuiles sur toute la largeur : Onglet, Écran entier, Halo */
+        .quick-icons-grid.gif-start-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .gif-halo-tile {
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* Toggle du halo : gris au lieu du mauve */
+        .gif-halo-tile .toggle-switch input:checked + .toggle-slider {
+            background: #757575;
+        }
+
+        .gif-start-grid .icon-label {
+            font-size: 13px;
+        }
+
+        .gif-recording {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            margin-bottom: 14px;
+            border-radius: 8px;
+            background: #ffebee;
+            font-size: 18px;
+            font-weight: bold;
+            color: #c62828;
+        }
+
+        .gif-rec-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e53935;
+            animation: gif-blink 1s infinite;
+        }
+
+        @keyframes gif-blink {
+            50% { opacity: 0.2; }
+        }
+
+        .gif-stop-btn {
+            margin-left: auto;
+            background: #e53935;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .gif-settings {
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .gif-text-input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 13px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .gif-text-input:focus {
+            border-color: #FF9800;
+        }
+
+        .gif-text-input.invalid {
+            border-color: #f44336;
+        }
+
+        .gif-status {
+            margin-bottom: 12px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: #f1f8e9;
+            color: #33691e;
+            font-size: 13px;
+        }
+
+        .gif-status:empty {
+            display: none;
+        }
+
+        .gif-status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        /* GIF actif : même carte blanche que les éléments d'historique du presse-papiers */
+        .gif-current {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 14px 14px 18px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .gif-thumb-box {
+            position: relative;
+            cursor: zoom-in;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f5f5f5;
+        }
+
+        .gif-thumb-box img {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            max-height: none;
+        }
+
+        .gif-zoom-hint {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .gif-thumb-box:hover .gif-zoom-hint {
+            opacity: 1;
+        }
+
+        /* Carte du GIF actif : trois blocs aérés sous la miniature */
+        .gif-title-field {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border: 2px solid #ffe0b2;
+            border-radius: 12px;
+            background: #fffaf3;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .gif-title-field:focus-within {
+            border-color: #FF9800;
+            background: white;
+        }
+
+        .gif-title-field input {
+            flex: 1;
+            min-width: 0;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            padding: 0;
+        }
+
+        .gif-title-pencil {
+            font-size: 16px;
+        }
+
+        .gif-title-ext {
+            font-size: 14px;
+            font-weight: 600;
+            color: #bbb;
+        }
+
+        .gif-meta-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .gif-meta {
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: #f3f3f3;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        /* Boutons ronds Drive / Ordi / Supprimer : icône SVG, libellé en bulle au survol */
+        .gif-actions-row {
+            display: flex;
+            justify-content: space-evenly;
+            padding: 4px 0;
+        }
+
+        .gif-round-btn {
+            position: relative;
+            width: 56px;
+            height: 56px;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            text-decoration: none;
+            cursor: pointer;
+            padding: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .gif-round-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .gif-round-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: white;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Bulle au survol (data-tip) */
+        .gif-round-btn[data-tip]:hover::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 5px 9px;
+            border-radius: 6px;
+            background: #333;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .gif-round-btn.busy {
+            opacity: 0.6;
+            animation: gif-blink 1s infinite;
+        }
+
+        .gif-icon-confirm,
+        .gif-action-delete.confirm .gif-icon-trash {
+            display: none;
+        }
+
+        .gif-action-delete.confirm .gif-icon-confirm {
+            display: block;
+        }
+
+        .gif-action-drive {
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+        }
+
+        .gif-action-pc {
+            background: #2196F3;
+        }
+
+        .gif-action-delete {
+            background: #f44336;
+        }
+
+        .gif-action-delete.confirm {
+            background: #b71c1c;
+            animation: gif-blink 1s infinite;
+        }
+
+        .gif-history-title {
+            margin: 16px 0 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .gif-history {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+        }
+
+        .gif-history-item {
+            position: relative;
+            padding: 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fafafa;
+            cursor: pointer;
+            aspect-ratio: 16 / 10;
+            transition: all 0.2s ease;
+        }
+
+        .gif-history-item:hover {
+            border-color: #FF9800;
+            transform: translateY(-2px);
+        }
+
+        .gif-history-item.current {
+            border-color: #FF9800;
+        }
+
+        .gif-history-item img {
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            max-height: none;
+            object-fit: cover;
+            display: block;
+        }
+
+        .gif-history-badge {
+            position: absolute;
+            right: 2px;
+            bottom: 1px;
+            font-size: 12px;
+        }
+
         /* Boutons icônes rapides pour affichage en grand */
         .quick-icons-grid {
             display: grid;
@@ -860,6 +1251,7 @@
             <button class="nav-icon" data-section="dictation" title="Dictée et Transcription">🎤</button>
             <button class="nav-icon" data-section="clipboard" title="Presse-papiers">📋</button>
             <button class="nav-icon" data-section="translation" title="Traduction">🌐</button>
+            <button class="nav-icon" data-section="gif" title="Tuto GIF">🎬</button>
         </div>
 
         <div class="container">
@@ -1070,9 +1462,112 @@
             </div>
         </div>
 
+        <!-- Section 5: Tuto GIF (mêmes briques que les autres onglets : bandeau + toggle,
+             tuiles emoji, bouton pointillé « Réglages », encadré de curseurs) -->
+        <div class="section tool-section" id="gif-tool" data-section="gif">
+            <h3>
+                <span>🎬 Tuto GIF</span>
+                <button id="gifSettingsToggle" class="gif-gear-btn" title="Réglages">⚙️</button>
+            </h3>
+
+            <!-- Réglages : ouverts par l'engrenage, fermés par la croix -->
+            <div id="gifSettings" class="magnifier-controls gif-settings" style="display: none;">
+                <div class="gif-settings-head">
+                    <span>⚙️ Réglages</span>
+                    <button id="gifSettingsClose" class="gif-close-btn" title="Fermer les réglages">✕</button>
+                </div>
+                <div class="control-group">
+                    <label for="gifFps">Images par seconde</label>
+                    <input type="range" id="gifFps" min="4" max="15" value="8" step="1">
+                    <span id="gifFpsValue">8</span>
+                </div>
+                <div class="control-group">
+                    <label for="gifMaxWidth">Largeur maximale</label>
+                    <input type="range" id="gifMaxWidth" min="480" max="1440" value="960" step="160">
+                    <span id="gifMaxWidthValue">960 px</span>
+                </div>
+                <div class="control-group">
+                    <label for="gifMaxDuration">Durée maximale</label>
+                    <input type="range" id="gifMaxDuration" min="15" max="120" value="60" step="15">
+                    <span id="gifMaxDurationValue">60 s</span>
+                </div>
+                <div class="control-group">
+                    <label for="gifDriveFolder">Dossier Drive (lien)</label>
+                    <input type="text" id="gifDriveFolder" class="gif-text-input" placeholder="https://drive.google.com/drive/folders/…">
+                </div>
+            </div>
+
+            <!-- Démarrer -->
+            <div id="gifIdle" class="quick-icons-grid gif-start-grid">
+                <button id="gifStartTab" class="quick-icon-btn" title="Filmer cet onglet seulement">
+                    <span class="icon-emoji">🗂️</span>
+                    <span class="icon-label">Onglet</span>
+                </button>
+                <button id="gifStartScreen" class="quick-icon-btn" title="Filmer tout l'écran">
+                    <span class="icon-emoji">🖥️</span>
+                    <span class="icon-label">Écran entier</span>
+                </button>
+                <label class="quick-icon-btn gif-halo-tile" title="Cercle orange à chaque clic dans le GIF">
+                    <span class="toggle-switch">
+                        <input type="checkbox" id="gifHaloToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </span>
+                    <span class="icon-label">Halo des clics</span>
+                </label>
+            </div>
+
+            <div id="gifRecordingBox" class="gif-recording" style="display: none;">
+                <span class="gif-rec-dot"></span>
+                <span id="gifTimer">0:00</span>
+                <button id="gifStop" class="gif-stop-btn">■ Stop</button>
+            </div>
+
+            <div id="gifStatus" class="gif-status"></div>
+
+            <!-- GIF actif -->
+            <div id="gifResult" class="gif-current" style="display: none;">
+                <div id="gifThumbBox" class="gif-thumb-box" title="Voir en grand">
+                    <span class="gif-zoom-hint">🔍 Voir en grand</span>
+                </div>
+                <!-- Titre du GIF (sert pour Drive et le téléchargement) + détails à droite dessous -->
+                <div class="gif-title-block">
+                    <div class="gif-title-field">
+                        <span class="gif-title-pencil">✏️</span>
+                        <input type="text" id="gifName" title="Renommer le GIF" aria-label="Titre du GIF">
+                        <span class="gif-title-ext">.gif</span>
+                    </div>
+                    <div class="gif-meta-row"><span id="gifMeta" class="gif-meta"></span></div>
+                </div>
+
+                <!-- 3. Actions : boutons ronds à icône, libellé en bulle au survol -->
+                <div class="gif-actions-row">
+                    <button id="gifSendDrive" class="gif-round-btn gif-action-drive" data-tip="Envoyer vers Drive" aria-label="Envoyer vers Drive">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 9.5"/><path d="M12 12v8"/><path d="m8.5 15.5 3.5-3.5 3.5 3.5"/></svg>
+                    </button>
+                    <button id="gifCopyLink" class="gif-round-btn gif-action-drive" style="display: none;" data-tip="Copier le lien Drive" aria-label="Copier le lien Drive">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    </button>
+                    <a id="gifDownload" class="gif-round-btn gif-action-pc" download data-tip="Télécharger sur l'ordinateur" aria-label="Télécharger sur l'ordinateur">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+                    </a>
+                    <button id="gifDelete" class="gif-round-btn gif-action-delete" data-tip="Supprimer de ToolWeb" aria-label="Supprimer de ToolWeb">
+                        <svg class="gif-icon-trash" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></svg>
+                        <svg class="gif-icon-confirm" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Historique -->
+            <div id="gifHistoryBox" style="display: none;">
+                <div class="gif-history-title">Historique · 10 derniers</div>
+                <div id="gifHistory" class="gif-history"></div>
+            </div>
+        </div>
+
         </div>
     </div>
     <script src="config.js"></script>
+    <script src="gif-db.js"></script>
     <script src="sidepanel.js"></script>
 </body>
 

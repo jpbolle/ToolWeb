@@ -186,6 +186,378 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+  // ===== Tuto GIF 🎬 =====
+  // L'enregistrement et la fabrication du GIF tournent dans offscreen.js (via background.js) :
+  // cette barre latérale peut disparaître (changement de page) sans les interrompre.
+  const gifIdle = document.getElementById('gifIdle');
+  const gifRecordingBox = document.getElementById('gifRecordingBox');
+  const gifTimer = document.getElementById('gifTimer');
+  const gifStatus = document.getElementById('gifStatus');
+  const gifResult = document.getElementById('gifResult');
+  const gifThumbBox = document.getElementById('gifThumbBox');
+  const gifHaloToggle = document.getElementById('gifHaloToggle');
+  const gifDriveFolder = document.getElementById('gifDriveFolder');
+  const gifSendDrive = document.getElementById('gifSendDrive');
+  const gifCopyLink = document.getElementById('gifCopyLink');
+  const gifDownload = document.getElementById('gifDownload');
+  const gifName = document.getElementById('gifName');
+  const gifHistoryBox = document.getElementById('gifHistoryBox');
+  const gifHistory = document.getElementById('gifHistory');
+  const gifFps = document.getElementById('gifFps');
+  const gifMaxWidth = document.getElementById('gifMaxWidth');
+  const gifMaxDuration = document.getElementById('gifMaxDuration');
+  const gifMeta = document.getElementById('gifMeta');
+  const gifDelete = document.getElementById('gifDelete');
+  let gifDriveLink = null;
+  let gifTimerInterval = null;
+  let gifPreviewUrl = null;
+  let gifHistoryUrls = [];
+  let currentGifKey = null;   // GIF affiché en grand dans l'onglet (le plus récent par défaut)
+
+  function setGifStatus(text, isError = false) {
+    gifStatus.textContent = text;
+    gifStatus.classList.toggle('error', isError);
+  }
+
+  function formatDuration(ms) {
+    const seconds = Math.floor(ms / 1000);
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  }
+
+  // Affiche l'état « en cours » ou « au repos » selon chrome.storage.session
+  function renderGifRecording(recording) {
+    clearInterval(gifTimerInterval);
+    if (recording && recording.finalizing) {
+      gifIdle.style.display = 'none';
+      gifRecordingBox.style.display = 'none';
+      setGifStatus('⏳ Finalisation du GIF…');
+    } else if (recording) {
+      gifIdle.style.display = 'none';
+      gifRecordingBox.style.display = 'flex';
+      const tick = () => { gifTimer.textContent = formatDuration(Math.max(0, Date.now() - recording.startedAt)); };
+      tick();
+      gifTimerInterval = setInterval(tick, 500);
+    } else {
+      gifIdle.style.display = '';
+      gifRecordingBox.style.display = 'none';
+    }
+  }
+
+  // Nom par défaut : tuto-AAAA-MM-JJ-HHhMM.gif (heure locale)
+  function gifFileName(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `tuto-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}h${pad(date.getMinutes())}.gif`;
+  }
+
+  // Détails du GIF : une seule pastille « durée - dimensions - poids »
+  function renderGifMeta(capture) {
+    const sizeKo = capture.blob.size / 1024;
+    const weight = sizeKo >= 1024 ? `${(sizeKo / 1024).toFixed(1).replace('.', ',')} Mo` : `${Math.round(sizeKo)} Ko`;
+    gifMeta.textContent = `${formatDuration(capture.durationMs)} - ${capture.width} × ${capture.height} - ${weight}`;
+  }
+
+  // Nom choisi par l'utilisateur, ou nom par défaut ; toujours terminé par .gif
+  function captureName(capture) {
+    return capture.name || gifFileName(new Date(capture.createdAt));
+  }
+
+  // Affiche un GIF de l'historique comme GIF courant (sans clé : le plus récent)
+  async function showCapture(key) {
+    try {
+      const keys = await gifHistoryKeys();
+      if (!key || !keys.includes(key)) key = keys[0];
+      if (!key) {
+        gifResult.style.display = 'none';
+        gifHistoryBox.style.display = 'none';
+        return;
+      }
+      const capture = await gifDbGet(key);
+      currentGifKey = key;
+
+      if (gifPreviewUrl) URL.revokeObjectURL(gifPreviewUrl);
+      gifPreviewUrl = URL.createObjectURL(capture.blob);
+      const thumb = document.createElement('img');
+      thumb.src = gifPreviewUrl;
+      thumb.alt = 'Miniature du GIF';
+      const oldThumb = gifThumbBox.querySelector('img');
+      if (oldThumb) oldThumb.remove();
+      gifThumbBox.prepend(thumb); // l'étiquette « 🔍 Voir en grand » reste par-dessus
+      gifName.value = captureName(capture).replace(/\.gif$/i, '');
+      gifDownload.href = gifPreviewUrl;
+      gifDownload.download = captureName(capture);
+      gifResult.style.display = ''; // display: flex du CSS (les espacements en dépendent)
+      renderDriveState(capture.drive);
+      resetGifDelete();
+      renderGifMeta(capture);
+      renderHistory(keys);
+    } catch (error) {
+      console.error('❌ Lecture de la capture impossible:', error);
+      setGifStatus('Impossible de relire la capture : ' + error.message, true);
+    }
+  }
+
+  // Miniatures des 10 derniers GIF ; ☁️ = déjà envoyé sur Drive
+  async function renderHistory(keys) {
+    gifHistoryUrls.forEach((url) => URL.revokeObjectURL(url));
+    gifHistoryUrls = [];
+    const items = [];
+    for (const key of keys) {
+      const capture = await gifDbGet(key);
+      if (!capture) continue;
+      const url = URL.createObjectURL(capture.blob);
+      gifHistoryUrls.push(url);
+
+      const item = document.createElement('button');
+      item.className = 'gif-history-item' + (key === currentGifKey ? ' current' : '');
+      item.title = captureName(capture) + (capture.drive ? ' (envoyé sur Drive)' : '');
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = '';
+      item.appendChild(img);
+      if (capture.drive) {
+        const badge = document.createElement('span');
+        badge.className = 'gif-history-badge';
+        badge.textContent = '☁️';
+        item.appendChild(badge);
+      }
+      item.addEventListener('click', () => showCapture(key));
+      items.push(item);
+    }
+    gifHistory.replaceChildren(...items);
+    gifHistoryBox.style.display = items.length > 1 ? 'block' : 'none';
+  }
+
+  // Renommage : enregistré avec le GIF, utilisé pour Drive et le téléchargement
+  gifName.addEventListener('change', async () => {
+    if (!currentGifKey) return;
+    const capture = await gifDbGet(currentGifKey);
+    if (!capture) return;
+    const cleaned = gifName.value.trim().replace(/[\\/:*?"<>|]/g, '-').replace(/\.gif$/i, '');
+    capture.name = cleaned ? cleaned + '.gif' : null;
+    await gifDbPut(currentGifKey, capture);
+    gifName.value = captureName(capture).replace(/\.gif$/i, '');
+    gifDownload.download = captureName(capture);
+  });
+
+  // Extension rechargée sans recharger la page : cette barre latérale est « orpheline »
+  function gifContextLost() {
+    if (chrome.runtime && chrome.runtime.id) return false;
+    setGifStatus('ToolWeb a été mis à jour : rechargez la page (Cmd+R), puis réessayez.', true);
+    return true;
+  }
+
+  function startGif(mode) {
+    if (gifContextLost()) return;
+    setGifStatus(mode === 'screen' ? 'Choisissez l\'écran dans la fenêtre de Chrome…' : 'Démarrage…');
+    chrome.runtime.sendMessage({
+      action: 'gif_start',
+      mode,
+      halo: gifHaloToggle.checked,
+      settings: readGifSettings(),
+      pixelRatio: window.devicePixelRatio || 1 // densité de l'écran (Retina = 2), pour filmer net
+    }, (response) => {
+      if (chrome.runtime.lastError || !response || !response.ok) {
+        const reason = chrome.runtime.lastError ? chrome.runtime.lastError.message : (response ? response.error : 'pas de réponse');
+        console.error('❌ Démarrage GIF:', reason);
+        // Fenêtre de choix fermée sans choisir → pas une vraie erreur
+        if (/denied|cancel/i.test(reason)) {
+          setGifStatus('Partage d\'écran annulé.');
+        } else {
+          setGifStatus('Enregistrement impossible : ' + reason, true);
+        }
+        return;
+      }
+      setGifStatus('');
+    });
+  }
+
+  document.getElementById('gifStartTab').addEventListener('click', () => startGif('tab'));
+  document.getElementById('gifStartScreen').addEventListener('click', () => startGif('screen'));
+
+  document.getElementById('gifStop').addEventListener('click', () => {
+    if (gifContextLost()) return;
+    chrome.runtime.sendMessage({ action: 'gif_stop' });
+  });
+
+  gifThumbBox.addEventListener('click', () => {
+    if (currentGifKey) sendMessageToContentScript('show_gif_preview', { key: currentGifKey });
+  });
+
+  // ----- Réglages ⚙️ (images par seconde, largeur, durée), mémorisés -----
+
+  function readGifSettings() {
+    return {
+      fps: Number(gifFps.value),
+      maxWidth: Number(gifMaxWidth.value),
+      maxDurationS: Number(gifMaxDuration.value)
+    };
+  }
+
+  // Valeurs affichées à droite des curseurs, comme pour la loupe
+  function renderGifSettingValues() {
+    document.getElementById('gifFpsValue').textContent = gifFps.value;
+    document.getElementById('gifMaxWidthValue').textContent = `${gifMaxWidth.value} px`;
+    document.getElementById('gifMaxDurationValue').textContent = `${gifMaxDuration.value} s`;
+  }
+
+  chrome.storage.local.get('gifSettings', (result) => {
+    const saved = result.gifSettings;
+    if (saved) {
+      gifFps.value = String(saved.fps);
+      gifMaxWidth.value = String(saved.maxWidth);
+      gifMaxDuration.value = String(saved.maxDurationS);
+    }
+    renderGifSettingValues();
+  });
+  [gifFps, gifMaxWidth, gifMaxDuration].forEach((slider) => {
+    slider.addEventListener('input', renderGifSettingValues);
+    slider.addEventListener('change', () => chrome.storage.local.set({ gifSettings: readGifSettings() }));
+  });
+
+  // Engrenage du bandeau : ouvre / ferme les réglages ; la croix les referme
+  const gifSettingsToggle = document.getElementById('gifSettingsToggle');
+  const gifSettingsBox = document.getElementById('gifSettings');
+  function showGifSettings(open) {
+    gifSettingsBox.style.display = open ? 'flex' : 'none';
+  }
+  gifSettingsToggle.addEventListener('click', () => showGifSettings(gifSettingsBox.style.display === 'none'));
+  document.getElementById('gifSettingsClose').addEventListener('click', () => showGifSettings(false));
+  // Premier usage : dossier Drive pas encore renseigné → réglages ouverts
+  chrome.storage.local.get('gifDriveFolderId', (result) => {
+    if (!result.gifDriveFolderId) showGifSettings(true);
+  });
+
+  // ----- Suppression du GIF actif : deuxième clic pour confirmer (pas de popup) -----
+  let gifDeleteTimer = null;
+
+  function resetGifDelete() {
+    clearTimeout(gifDeleteTimer);
+    gifDelete.classList.remove('confirm'); // l'icône ✓ redevient une poubelle
+    gifDelete.dataset.tip = 'Supprimer de ToolWeb';
+  }
+
+  gifDelete.addEventListener('click', async () => {
+    if (!currentGifKey) return;
+    if (!gifDelete.classList.contains('confirm')) {
+      gifDelete.classList.add('confirm');
+      gifDelete.dataset.tip = 'Cliquer encore pour supprimer';
+      gifDeleteTimer = setTimeout(resetGifDelete, 3000);
+      return;
+    }
+    resetGifDelete();
+    await gifDbDelete(currentGifKey);
+    setGifStatus('🗑️ GIF supprimé de ToolWeb.');
+    showCapture(); // affiche le plus récent restant
+  });
+
+  // ----- Envoi vers Google Drive -----
+
+  // Accepte le lien d'un dossier Drive ou son identifiant seul
+  function parseDriveFolderId(text) {
+    const match = text.match(/folders\/([\w-]+)/);
+    if (match) return match[1];
+    const trimmed = text.trim();
+    return /^[\w-]{15,}$/.test(trimmed) ? trimmed : null;
+  }
+
+  chrome.storage.local.get('gifDriveFolderId', (result) => {
+    if (result.gifDriveFolderId) {
+      gifDriveFolder.value = `https://drive.google.com/drive/folders/${result.gifDriveFolderId}`;
+    }
+  });
+  gifDriveFolder.addEventListener('change', () => {
+    const folderId = parseDriveFolderId(gifDriveFolder.value);
+    gifDriveFolder.classList.toggle('invalid', !folderId && gifDriveFolder.value.trim() !== '');
+    if (folderId) chrome.storage.local.set({ gifDriveFolderId: folderId });
+  });
+
+  // Bouton « Envoyer » tant que le GIF n'est pas parti, « Copier le lien » ensuite
+  function renderDriveState(drive) {
+    gifDriveLink = drive ? drive.link : null;
+    gifSendDrive.style.display = drive ? 'none' : 'flex';
+    gifCopyLink.style.display = drive ? 'flex' : 'none';
+    gifSendDrive.disabled = false;
+    gifSendDrive.classList.remove('busy');
+  }
+
+  async function copyDriveLink() {
+    if (!gifDriveLink) return;
+    try {
+      await navigator.clipboard.writeText(gifDriveLink);
+      setGifStatus('📋 Lien Drive copié : collez-le dans Classroom ou un support.');
+    } catch (error) {
+      console.error('❌ Copie du lien impossible:', error);
+      setGifStatus('Copie impossible. Lien : ' + gifDriveLink, true);
+    }
+  }
+
+  gifSendDrive.addEventListener('click', async () => {
+    if (gifContextLost()) return;
+    const folderId = parseDriveFolderId(gifDriveFolder.value);
+    if (!folderId) {
+      gifDriveFolder.classList.add('invalid');
+      setGifStatus('Collez d\'abord le lien du dossier Drive ci-dessus.', true);
+      return;
+    }
+    const capture = currentGifKey && await gifDbGet(currentGifKey);
+    if (!capture) return;
+    const sentKey = currentGifKey;
+
+    gifSendDrive.disabled = true;
+    gifSendDrive.classList.add('busy');
+    setGifStatus('Envoi vers Drive…');
+    chrome.runtime.sendMessage({
+      action: 'gif_upload',
+      folderId,
+      key: sentKey,
+      name: captureName(capture)
+    }, async (response) => {
+      if (chrome.runtime.lastError || !response || !response.ok) {
+        const reason = chrome.runtime.lastError ? chrome.runtime.lastError.message : (response ? response.error : 'pas de réponse');
+        renderDriveState(null);
+        setGifStatus('Envoi impossible : ' + reason, true);
+        return;
+      }
+      await showCapture(sentKey); // miniature ☁️ dans l'historique, bouton « Copier le lien »
+      await copyDriveLink();
+      setGifStatus('✅ GIF envoyé sur Drive — lien copié dans le presse-papiers.');
+    });
+  });
+
+  gifCopyLink.addEventListener('click', copyDriveLink);
+
+  // Réglage du halo de clic, mémorisé (activé par défaut)
+  chrome.storage.local.get('gifClickHalo', (result) => {
+    gifHaloToggle.checked = result.gifClickHalo !== false;
+  });
+  gifHaloToggle.addEventListener('change', () => {
+    chrome.storage.local.set({ gifClickHalo: gifHaloToggle.checked });
+  });
+
+  // content.js demande d'afficher l'onglet 🎬 (GIF prêt après un Stop)
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'toolweb_show_section') {
+      const icon = document.querySelector(`.nav-icon[data-section="${event.data.section}"]`);
+      if (icon) icon.click();
+    }
+  });
+
+  chrome.storage.session.get(['gifRecording', 'gifLastError'], (result) => {
+    renderGifRecording(result.gifRecording);
+    if (result.gifLastError) setGifStatus('GIF impossible : ' + result.gifLastError, true);
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'session' && changes.gifRecording) renderGifRecording(changes.gifRecording.newValue);
+  });
+
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.action === 'gif_capture_saved') showCapture(message.key);
+    if (message.action === 'gif_capture_failed') setGifStatus('GIF impossible : ' + message.error, true);
+  });
+
+  // Au chargement : reprise des GIF des premières versions, puis affichage du plus récent
+  gifHistoryPrune().catch(() => {}).finally(() => showCapture());
+
   const startBtn = document.getElementById('startRecording');
   const stopBtn = document.getElementById('stopRecording');
   const copyBtn = document.getElementById('copyText');
@@ -379,7 +751,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Gestionnaires pour les icônes rapides d'affichage
   // Envoie l'icône + optionnellement les minutes si le minuteur est activé
-  const quickIconBtns = document.querySelectorAll('.quick-icon-btn');
+  // Seules les tuiles de l'affichage en grand (data-display-icon) : le même style sert à l'onglet 🎬
+  const quickIconBtns = document.querySelectorAll('.quick-icon-btn[data-display-icon]');
   quickIconBtns.forEach(btn => {
     btn.addEventListener('click', function () {
       const icon = this.getAttribute('data-display-icon');

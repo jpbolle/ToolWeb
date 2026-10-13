@@ -1,16 +1,24 @@
 {
   "manifest_version": 3,
   "name": "ToolWeb",
-  "version": "2.3",
+  "version": "2.4",
   "description": "Extension pour dicter du texte, le transcrire avec Whisper et le nettoyer avec l'IA.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1hMlzv7lEutKMG8tKtOR/9hi8IIBUmWctzjYO1l7gEZ4WYcoN8X1PIvNGw2mo0GTBq3Gg03yIwWfIX8fml88vEZR9YgM2gCthzY0odtxJ6ustCSKo5EVISNQzq782w9LWuI2FthXm7f/E1Jq4K7IhApE67TL0GlFlKifX+D44gkFDJKDjLlna10pQfNkVvhj9Btj8NCB7pOEYTdFs1CdCI8Jh7dIELksycnL+xOrtICSU5+1bwvotVP2gYhA1k+evXUP4Tpjfjp4x++8gwt4uiAI6TaRZyjkVL3/ojLysN5YvDxUoV/EsJI2HDn2K/zLODhn6b3fuuMSoYHBeReAPwIDAQAB",
   "permissions": [
     "activeTab",
     "storage",
     "clipboardWrite",
     "clipboardRead",
     "tabs",
-    "scripting"
+    "scripting",
+    "offscreen",
+    "tabCapture",
+    "identity"
   ],
+  "oauth2": {
+    "client_id": "1045022749271-bn95r5mkjv8mnhgtsgsji7fv5788u2s5.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/drive"]
+  },
   "host_permissions": [
     "*://*/*"
   ],
@@ -46,7 +54,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["sidepanel.html", "sidepanel.js", "config.js", "images/*"],
+      "resources": ["sidepanel.html", "sidepanel.js", "config.js", "gif-db.js", "gif-viewer.html", "gif-viewer.js", "images/*"],
       "matches": ["<all_urls>"]
     }
   ],
