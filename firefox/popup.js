@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', function () {
     fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer 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'
+        'Authorization': `Bearer ${CONFIG.OPENAI_API_KEY}`
         // Ne définissez pas 'Content-Type' lors de l'envoi de FormData
       },
       body: formData
@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer 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',
+          'Authorization': `Bearer ${CONFIG.OPENAI_API_KEY}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer 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',
+          'Authorization': `Bearer ${CONFIG.OPENAI_API_KEY}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
